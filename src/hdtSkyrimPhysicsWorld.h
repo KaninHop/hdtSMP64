@@ -68,7 +68,7 @@ namespace hdt
 		// @a_smoothingSamples How many samples to smooth. Defaults to 8. Must be greater than 0. Value of 1 means no smoothing
 		void setWind(const RE::NiPoint3& a_direction, float a_scale = scaleSkyrim, uint32_t a_smoothingSamples = 8);
 
-		concurrency::task_group m_tasks;
+		tbb::task_group m_tasks;
 
 		bool m_pendingTransformUpdate = false;
 		bool m_useRealTime = false;
@@ -96,7 +96,7 @@ namespace hdt
 
 	private:
 		SkyrimPhysicsWorld(void);
-		~SkyrimPhysicsWorld(void);
+		~SkyrimPhysicsWorld(void) noexcept;
 
 		std::mutex m_lock;
 

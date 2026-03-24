@@ -46,7 +46,7 @@ namespace hdt
 		m_accumulatedInterval = 0;
 	}
 
-	SkyrimPhysicsWorld::~SkyrimPhysicsWorld(void)
+	SkyrimPhysicsWorld::~SkyrimPhysicsWorld(void) noexcept
 	{
 	}
 

@@ -22,7 +22,13 @@ namespace hdt
 			nullptr,  // no Mt solver, avoids btBatchedConstraints entirely (we are not designed for that yet)
 			nullptr)
 	{
-		btSetTaskScheduler(btGetPPLTaskScheduler());
+		// Prefer TBB scheduler if available, otherwise use the default OS thread pool scheduler.
+		// btGetPPLTaskScheduler() is avoided because ConcRT performs poorly on Linux/Proton.
+		// btGetTBBTaskScheduler() may return nullptr if Bullet wasn't compiled with BT_USE_TBB.
+		auto* scheduler = btGetTBBTaskScheduler();
+		if (!scheduler)
+			scheduler = btCreateDefaultTaskScheduler();
+		btSetTaskScheduler(scheduler);
 
 		m_windSpeed = _mm_setzero_ps();
 

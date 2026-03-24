@@ -17,9 +17,9 @@ namespace hdt
 		if (this->block_resetting)
 			return;
 
-		for (const auto& bone : m_bones) {
+		tbb::parallel_for_each(m_bones.begin(), m_bones.end(), [=](const auto& bone) {
 			bone->readTransform(timeStep);
-		}
+		});
 
 		for (auto i : m_constraints) {
 			i->scaleConstraint();

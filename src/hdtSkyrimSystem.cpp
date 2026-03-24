@@ -344,7 +344,7 @@ namespace hdt
 		}
 
 		if (m_deferredBuilds.size() > 2) {
-			concurrency::parallel_for_each(
+			tbb::parallel_for_each(
 				m_deferredBuilds.begin(), m_deferredBuilds.end(),
 				[](const DeferredBuild& db) {
 					if (db.vertexShape)
