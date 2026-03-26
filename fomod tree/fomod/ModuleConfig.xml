@@ -45,37 +45,8 @@ Current active developers at the time of this writing, ordered by date of involv
 				</group>
 			</optionalFileGroups>
 		</installStep>
-		<installStep name="">
+		<installStep name="AVX">
 			<optionalFileGroups order="Explicit">
-				<group name="CUDA or not" type="SelectExactlyOne">
-					<plugins order="Explicit">
-						<plugin name="CUDA">
-							<description>Q: What is CUDA?
-A: CUDA is a NVidia API enabling general purpose processing on the GPU. Useful when the GPU is powerful, the calculus are adapted for GPU, and the transfers between the CPU and GPU minimal.
-
-If you wish CUDA GPU acceleration, CUDA must be enabled in the MCM.
-CUDA GPU acceleration is not yet enough optimized, so it is often slower than having CUDA disabled.
-
-Moreover, it has been reported that the CUDA version of FSMP is not compatible with NVIDIA‘s Linux drivers.
-If you use Linux, it is recommended you install the NOT CUDA version (thanks Vainly for this info).</description>
-							<conditionFlags>
-								<flag name="CUDA">On</flag>
-							</conditionFlags>
-							<typeDescriptor>
-								<type name="Optional" />
-							</typeDescriptor>
-						</plugin>
-						<plugin name="NOT CUDA (recommended)">
-							<description>Probably more stability and performance with this version rather than a CUDA version with the CUDA option disabled.</description>
-							<conditionFlags>
-								<flag name="CUDA">Off</flag>
-							</conditionFlags>
-							<typeDescriptor>
-								<type name="Recommended" />
-							</typeDescriptor>
-						</plugin>
-					</plugins>
-				</group>
 				<group name="AVX" type="SelectExactlyOne">
 					<plugins order="Explicit">
 						<plugin name="No AVX">
@@ -177,43 +148,6 @@ Finally, credits and thanks to hydrogensaysHDT, aers, ousnius, Karonar1, alandts
 		<patterns>
 			<pattern>
 				<dependencies operator="And">
-					<flagDependency flag="CUDA" value="On" />
-					<flagDependency flag="AVX" value="On" />
-				</dependencies>
-				<files>
-					<folder source="raw-vs2022-windows-cuda-avx\SKSE" destination="SKSE" priority="0" />
-				</files>
-			</pattern>
-			<pattern>
-				<dependencies operator="And">
-					<flagDependency flag="CUDA" value="On" />
-					<flagDependency flag="NOAVX" value="On" />
-				</dependencies>
-				<files>
-					<folder source="raw-vs2022-windows-cuda\SKSE" destination="SKSE" priority="0" />
-				</files>
-			</pattern>
-			<pattern>
-				<dependencies operator="And">
-					<flagDependency flag="CUDA" value="On" />
-					<flagDependency flag="AVX2" value="On" />
-				</dependencies>
-				<files>
-					<folder source="raw-vs2022-windows-cuda-avx2\SKSE" destination="SKSE" priority="0" />
-				</files>
-			</pattern>
-			<pattern>
-				<dependencies operator="And">
-					<flagDependency flag="CUDA" value="On" />
-					<flagDependency flag="AVX512" value="On" />
-				</dependencies>
-				<files>
-					<folder source="raw-vs2022-windows-cuda-avx512\SKSE" destination="SKSE" priority="0" />
-				</files>
-			</pattern>
-			<pattern>
-				<dependencies operator="And">
-					<flagDependency flag="CUDA" value="Off" />
 					<flagDependency flag="NOAVX" value="On" />
 				</dependencies>
 				<files>
@@ -222,7 +156,6 @@ Finally, credits and thanks to hydrogensaysHDT, aers, ousnius, Karonar1, alandts
 			</pattern>
 			<pattern>
 				<dependencies operator="And">
-					<flagDependency flag="CUDA" value="Off" />
 					<flagDependency flag="AVX" value="On" />
 				</dependencies>
 				<files>
@@ -231,7 +164,6 @@ Finally, credits and thanks to hydrogensaysHDT, aers, ousnius, Karonar1, alandts
 			</pattern>
 			<pattern>
 				<dependencies operator="And">
-					<flagDependency flag="CUDA" value="Off" />
 					<flagDependency flag="AVX2" value="On" />
 				</dependencies>
 				<files>
@@ -240,7 +172,6 @@ Finally, credits and thanks to hydrogensaysHDT, aers, ousnius, Karonar1, alandts
 			</pattern>
 			<pattern>
 				<dependencies operator="And">
-					<flagDependency flag="CUDA" value="Off" />
 					<flagDependency flag="AVX512" value="On" />
 				</dependencies>
 				<files>

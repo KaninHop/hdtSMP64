@@ -173,15 +173,7 @@
     -->
     <disable1stPersonViewPhysics>true</disable1stPersonViewPhysics>
 
-    <!-- ##################### CUDA ####################################### -->
 
-    <!--
-      enableCuda: (boolean) experimental GPU collision algorithm. Try this if
-      you have a slow CPU and fast GPU. This setting will be ignored if you
-      haven't installed the CUDA-enabled version.
-      If no value is set, default is false.
-    -->
-    <enableCuda>true</enableCuda>
 
   </smp>
   <solver>
@@ -196,17 +188,13 @@
     <numIterations>16</numIterations>
 
     <!--
-      groupIterations: (int 0-4096)
-      If no value is set, default is 2.
-    -->
-    <groupIterations>16</groupIterations>
-
-    <!--
       groupEnableMLCP: (boolean) Turns on the higher quality constraint solver,
       better constraint simulation at the cost of performance.
       If no value is set, default is true.
     -->
     <groupEnableMLCP>true</groupEnableMLCP>
+
+
 
     <!--
       erp: (float ]0-1[) The error correction force applied per simulation
