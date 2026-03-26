@@ -88,6 +88,9 @@ set(SOURCE_FILES
 	"${SOURCE_DIR}/main.cpp"
 	"${SOURCE_DIR}/PCH.h")
 source_group(TREE "${ROOT_DIR}" FILES ${SOURCE_FILES})
+if(NOT DEFINED PLUGIN_VARIANT)
+	set(PLUGIN_VARIANT "unknown")
+endif()
 
 set(VERSION_HEADER "${CMAKE_CURRENT_BINARY_DIR}/src/Plugin.h")
 

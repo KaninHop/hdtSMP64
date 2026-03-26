@@ -16,4 +16,5 @@ namespace Plugin
 	};
 
 	inline constexpr auto NAME = "@PROJECT_NAME@"sv;
+	inline constexpr auto VARIANT = "@PLUGIN_VARIANT@"sv;
 }

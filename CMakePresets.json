@@ -95,7 +95,8 @@
         "value": "x64"
       },
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "/EHsc /MP /W4 /WX"
+        "CMAKE_CXX_FLAGS": "/EHsc /MP /W4 /WX",
+        "PLUGIN_VARIANT": "noavx"
       },
       "generator": "Visual Studio 17 2022",
       "inherits": [
@@ -112,7 +113,8 @@
         "value": "x64"
       },
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "/EHsc /MP /W4 /WX /arch:AVX"
+        "CMAKE_CXX_FLAGS": "/EHsc /MP /W4 /WX /arch:AVX",
+        "PLUGIN_VARIANT": "avx"
       },
       "generator": "Visual Studio 17 2022",
       "inherits": [
@@ -129,7 +131,8 @@
         "value": "x64"
       },
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "/EHsc /MP /W4 /WX /arch:AVX2"
+        "CMAKE_CXX_FLAGS": "/EHsc /MP /W4 /WX /arch:AVX2",
+        "PLUGIN_VARIANT": "avx2"
       },
       "generator": "Visual Studio 17 2022",
       "inherits": [
@@ -146,7 +149,8 @@
         "value": "x64"
       },
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "/EHsc /MP /W4 /WX /arch:AVX512"
+        "CMAKE_CXX_FLAGS": "/EHsc /MP /W4 /WX /arch:AVX512",
+        "PLUGIN_VARIANT": "avx512"
       },
       "generator": "Visual Studio 17 2022",
       "inherits": [
