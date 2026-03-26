@@ -344,7 +344,7 @@ namespace Hooks
 
 	void BSFaceGenNiNodeHooks::HookSetBoneName()
 	{
-		static REL::Relocation<uintptr_t> addr{ REL::RelocationID(26303, 26886) };
+		static REL::Relocation<uintptr_t> addr{ REL::VariantID(26303, 26886, 0x3E44E0) };
 		_SetBoneName = reinterpret_cast<SetBoneName_t*>(addr.address());
 		DetourAttach((PVOID*)&_SetBoneName, (PVOID)SetBoneName_Hook);
 	}

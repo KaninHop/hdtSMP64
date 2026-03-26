@@ -31,7 +31,7 @@ Plugin functionalities by jg1.
 Non-hookean physics functionalities by webspam.
 Port to CommonLib by Kernel Panic.
 Engine optimizations by asdt123123.
-Current active developers at the time of this writing, ordered by date of involvement in HDT-SMP: alandtse, DaydreamingDay, Kernel Panic, asdt123123.</description>
+Current active developers at the time of this writing, ordered by date of involvement in HDT-SMP: alandtse, DaydreamingDay, Backporter, asdt123123, usernameak, KaninHop.</description>
 							<image path="FSMPLogo.jpg" />
 							<files></files>
 							<conditionFlags>
@@ -126,7 +126,7 @@ Test and choose for yourself :)</description>
 - The Validator for your xml: https://raw.githubusercontent.com/DaymareOn/FSMP-Validator/refs/heads/main/skse/plugins/hdtSkinnedMeshConfigs/hdtSMP64.xsd
 - The code: https://github.com/DaymareOn/hdtSMP64/tree/master
 
-Finally, credits and thanks to hydrogensaysHDT, aers, ousnius, Karonar1, alandtse, DaydreamingDay, igloomod, SesamePaste, jg1, antpillager, Acro, webspam and full_inu :)
+Finally, credits and thanks to hydrogensaysHDT, aers, ousnius, Karonar1, alandtse, DaydreamingDay, igloomod, SesamePaste, jg1, antpillager, Acro, webspam, full_inu, Backporter, asdt123123, usernameak and KaninHop :)
 </description>
 							<files>
 								<folder source="FSMPM\Scripts" destination="Scripts" priority="1" />
