@@ -503,7 +503,15 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_s
 
 	//
 	InitializeLog();
-	logger::info("{} v{}"sv, Plugin::NAME, Plugin::VERSION.string());
+#if defined(__AVX512F__)
+	logger::info("{} v{} (AVX512)"sv, Plugin::NAME, Plugin::VERSION.string());
+#elif defined(__AVX2__)
+	logger::info("{} v{} (AVX2)"sv, Plugin::NAME, Plugin::VERSION.string());
+#elif defined(__AVX__)
+	logger::info("{} v{} (AVX)"sv, Plugin::NAME, Plugin::VERSION.string());
+#else
+	logger::info("{} v{} (noAVX)"sv, Plugin::NAME, Plugin::VERSION.string());
+#endif
 
 	SKSE::Init(a_skse);
 
