@@ -9,8 +9,7 @@ on:
       - "**.cpp"
       - "**.h"
       - "**.hpp"
-      - "**.cu"
-      - "**.cuh"
+      - "**.hpp"
       - "CMakeLists.txt"
       - "CMakePresets.json"
       - "vcpkg.json"
@@ -29,8 +28,7 @@ on:
       - "**.cpp"
       - "**.h"
       - "**.hpp"
-      - "**.cu"
-      - "**.cuh"
+      - "**.hpp"
       - "CMakeLists.txt"
       - "CMakePresets.json"
       - "vcpkg.json"
@@ -148,21 +146,9 @@ jobs:
       matrix:
         include:
           - preset: vs2022-windows-nocuda
-            cuda: false
           - preset: vs2022-windows-nocuda-avx
-            cuda: false
           - preset: vs2022-windows-nocuda-avx2
-            cuda: false
           - preset: vs2022-windows-nocuda-avx512
-            cuda: false
-          - preset: vs2022-windows-cuda
-            cuda: true
-          - preset: vs2022-windows-cuda-avx
-            cuda: true
-          - preset: vs2022-windows-cuda-avx2
-            cuda: true
-          - preset: vs2022-windows-cuda-avx512
-            cuda: true
 
     steps:
       - name: Checkout the repository
@@ -170,13 +156,7 @@ jobs:
         with:
           submodules: recursive # This handles the 'git submodule update --init --recursive' automatically
 
-      - name: Install CUDA Toolkit
-        if: matrix.cuda
-        uses: Jimver/cuda-toolkit@v0.2.30
-        with:
-          cuda: "12.6.3"
-          method: network
-          sub-packages: '["nvcc", "cudart"]'
+
 
       - name: Inject version into CMake
         shell: pwsh
@@ -228,15 +208,9 @@ jobs:
           name: raw-${{ matrix.preset }}
           path: out/build/${{ matrix.preset }}/plugins/
 
-  release:
-    needs: [prepare, build, check_messages]
-    # Release only on push to branches, and ignore commits that are just style, docs, tests changes
-    if: |
-      github.event_name == 'push' &&
-      needs.check_messages.outputs.should_release == 'true'
+  package:
+    needs: [prepare, build]
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout the code to get the "fomod tree" folder
@@ -297,7 +271,7 @@ jobs:
           cd final_package
           # a: add to archive
           # -tzip: ZIP container
-          # -mm=LZMA: Uses the strongest available compression algorithm; lzma2 isn't supported in ZIP
+          # -mm=LZMA: Uses the strongest available compression algorithm
           # -mx=9: Level 9 (Ultra)
           7z a -tzip -mm=LZMA -mx=9 ../FSMP-${{ github.ref_name }}-${{ needs.prepare.outputs.new_version }}.zip .
           cd ..
@@ -307,6 +281,29 @@ jobs:
         run: |
           echo "Listing contents of FSMP-${{ github.ref_name }}-${{ needs.prepare.outputs.new_version }}.zip:"
           7z l FSMP-${{ github.ref_name }}-${{ needs.prepare.outputs.new_version }}.zip
+
+      - name: Upload the package
+        uses: actions/upload-artifact@v4
+        with:
+          name: FSMP-Release-Package
+          path: "**.zip"
+
+  publish:
+    needs: [prepare, package, check_messages]
+    # Release only on push to branches, and ignore commits that are just style, docs, tests changes
+    if: |
+      github.event_name == 'push' &&
+      needs.check_messages.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download the package
+        uses: actions/download-artifact@v4
+        with:
+          name: FSMP-Release-Package
+          path: .
 
       - name: Create GitHub Release and Git Tag
         uses: softprops/action-gh-release@v2
