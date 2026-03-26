@@ -194,8 +194,6 @@
     -->
     <groupEnableMLCP>false</groupEnableMLCP>
 
-
-
     <!--
       erp: (float ]0-1[) The error correction force applied per simulation
       step, constraints will drift apart naturally, this value will exert a

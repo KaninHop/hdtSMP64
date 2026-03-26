@@ -147,7 +147,7 @@ Finally, credits and thanks to hydrogensaysHDT, aers, ousnius, Karonar1, alandts
 	<conditionalFileInstalls>
 		<patterns>
 			<pattern>
-				<dependencies operator="And">
+				<dependencies>
 					<flagDependency flag="NOAVX" value="On" />
 				</dependencies>
 				<files>
@@ -155,7 +155,7 @@ Finally, credits and thanks to hydrogensaysHDT, aers, ousnius, Karonar1, alandts
 				</files>
 			</pattern>
 			<pattern>
-				<dependencies operator="And">
+				<dependencies>
 					<flagDependency flag="AVX" value="On" />
 				</dependencies>
 				<files>
@@ -163,7 +163,7 @@ Finally, credits and thanks to hydrogensaysHDT, aers, ousnius, Karonar1, alandts
 				</files>
 			</pattern>
 			<pattern>
-				<dependencies operator="And">
+				<dependencies>
 					<flagDependency flag="AVX2" value="On" />
 				</dependencies>
 				<files>
@@ -171,7 +171,7 @@ Finally, credits and thanks to hydrogensaysHDT, aers, ousnius, Karonar1, alandts
 				</files>
 			</pattern>
 			<pattern>
-				<dependencies operator="And">
+				<dependencies>
 					<flagDependency flag="AVX512" value="On" />
 				</dependencies>
 				<files>
