@@ -73,7 +73,6 @@ The plugin recognizes the following optional parameters:
 ## Coming soon (maybe)
 
 - Reworked tag system for better compartmentalized .xml files.
-- Continued work on CUDA algorithms.
 
 ## Known issues
 
