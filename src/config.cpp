@@ -182,12 +182,12 @@ namespace hdt
 		logger::debug("config: solver.erp = {}", SkyrimPhysicsWorld::get()->getSolverInfo().m_erp);
 		logger::debug("config: solver.min-fps = {}", SkyrimPhysicsWorld::get()->min_fps);
 		logger::debug("config: solver.maxSubSteps = {}", SkyrimPhysicsWorld::get()->m_maxSubSteps);
-		
+
 		logger::debug("config: wind.windStrength = {}", SkyrimPhysicsWorld::get()->m_windStrength);
 		logger::debug("config: wind.enabled = {}", SkyrimPhysicsWorld::get()->m_enableWind);
 		logger::debug("config: wind.distanceForNoWind = {}", SkyrimPhysicsWorld::get()->m_distanceForNoWind);
 		logger::debug("config: wind.distanceForMaxWind = {}", SkyrimPhysicsWorld::get()->m_distanceForMaxWind);
-		
+
 		logger::debug("config: smp.logLevel = {}", g_logLevel);
 		for (auto& item : Hooks::BipedAnimHooks::BackupNodes) {
 			logger::debug("config: smp.backupNodeByName += {}", item);
