@@ -291,6 +291,17 @@ bool SMPDebug_Execute(
 		logger::debug("smp reset: reloading config and resetting physics world"sv);
 		RE::ConsoleLog::GetSingleton()->Print("running full smp reset");
 		hdt::loadConfig();
+hdt::logConfig();
+
+		if (!hdt::SkyrimPhysicsWorld::get()->m_enableWind) {
+			// Wind is off in the config; explicitly clear any residual force.
+			hdt::SkyrimPhysicsWorld::get()->setWind(RE::NiPoint3{ 0, 0, 0 }, 0.f, 1);
+		} else {
+			// Wind is enabled. Force an immediate weather tick to apply new settings,
+			// allowing it to interpolate smoothly from its current vector.
+			hdt::WeatherManager::forceWeatherUpdate();
+		}
+
 		hdt::SkyrimPhysicsWorld::get()->resetTransformsToOriginal();
 		const RE::MenuOpenCloseEvent e{ "", false };
 		hdt::ActorManager::instance()->ProcessEvent(&e, nullptr);
@@ -502,11 +513,12 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_s
 #endif
 
 	//
-	InitializeLog();
-	logger::info("{} v{}"sv, Plugin::NAME, Plugin::VERSION.string());
+	hdt::loadConfig();
 
 	//
-	hdt::loadConfig();
+	InitializeLog();
+	logger::info("{} v{}"sv, Plugin::NAME, Plugin::VERSION.string());
+	hdt::logConfig();
 
 	SKSE::Init(a_skse);
 
