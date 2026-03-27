@@ -53,7 +53,7 @@ namespace hdt
 				} else if (reader.GetLocalName() == "distanceForMaxWind") {
 					SkyrimPhysicsWorld::get()->m_distanceForMaxWind = btClamped(reader.readFloat(), 0.f, 10000.f);
 				} else {
-					logger::warn("Unknown config : ", reader.GetLocalName());
+					logger::warn("Unknown config : {}", reader.GetLocalName());
 					reader.skipCurrentElement();
 				}
 				break;

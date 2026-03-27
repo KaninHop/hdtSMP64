@@ -10,7 +10,7 @@ namespace hdt
 	public:
 		// Note: It's possible to exceed this with complex outfits, which is why we cap it.
 		// We don't want to stress a simulation island too much!
-		static const int MaxCollisionCount = 256;
+		static const int MaxCollisionCount = 512;
 
 		static void processCollision(SkinnedMeshBody* body0Wrap, SkinnedMeshBody* body1Wrap,
 			CollisionDispatcher* dispatcher);

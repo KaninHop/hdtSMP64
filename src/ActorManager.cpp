@@ -213,6 +213,50 @@ namespace hdt
 			return RE::BSEventNotifyControl::kContinue;
 		}
 
+		// Skyrim Bug Fix: This fixes a bug with skyrim where if a BSTriShape comes before a BSDynamicTriShape
+		// in the BSFaceGenNiNode, the face/actor will be skipped by the facial morph workers. This is not a SMP
+		// bug, but many smp mods (hair especially) tend to trigger this issue due to improper nifs
+		if (e->headNode) {
+			auto& children = e->headNode->GetChildren();
+
+			auto isStaticTriShape = [](RE::NiAVObject* c) {
+				return c && c->AsTriShape() && !c->AsDynamicTriShape();
+			};
+
+			// Check if any static shape sits before a dynamic one
+			bool seenStatic = false;
+			bool needsReorder = false;
+			for (auto& child : children) {
+				if (!child)
+					continue;
+				if (isStaticTriShape(child.get())) {
+					seenStatic = true;
+				} else if (child->AsDynamicTriShape() && seenStatic) {
+					needsReorder = true;
+					break;
+				}
+			}
+
+			if (needsReorder) {
+				logger::debug("FaceGen node order is incorrect (static physics shapes placed before dynamic head parts). Reordering to fix frozen face morphs...");
+
+				std::vector<RE::NiPointer<RE::NiAVObject>> staticShapes;
+				for (int i = static_cast<int>(children.size()) - 1; i >= 0; --i) {
+					auto* child = children[static_cast<std::uint16_t>(i)].get();
+					if (isStaticTriShape(child)) {
+						staticShapes.emplace_back(child);
+						e->headNode->DetachChildAt2(static_cast<std::uint16_t>(i));
+					}
+				}
+
+				for (auto it = staticShapes.rbegin(); it != staticShapes.rend(); ++it) {
+					e->headNode->AttachChild(it->get(), false);
+				}
+
+				logger::debug("FaceGen node reordering complete. Facial expressions restored.");
+			}
+		}
+
 		fixArmorNameMaps();
 
 		auto& skeleton = getSkeletonData(e->skeleton);
