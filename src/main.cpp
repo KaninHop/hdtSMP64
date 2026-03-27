@@ -285,7 +285,10 @@ bool SMPDebug_Execute(
 		return false;
 	}
 
+	logger::debug("SMPCommand: {} {}"sv, buffer, buffer2);
+
 	if (_strnicmp(buffer, "reset", MAX_PATH) == 0) {
+		logger::debug("smp reset: reloading config and resetting physics world"sv);
 		RE::ConsoleLog::GetSingleton()->Print("running full smp reset");
 		hdt::loadConfig();
 		hdt::SkyrimPhysicsWorld::get()->resetTransformsToOriginal();
