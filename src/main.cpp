@@ -291,7 +291,7 @@ bool SMPDebug_Execute(
 		logger::debug("smp reset: reloading config and resetting physics world"sv);
 		RE::ConsoleLog::GetSingleton()->Print("running full smp reset");
 		hdt::loadConfig();
-hdt::logConfig();
+		hdt::logConfig();
 
 		if (!hdt::SkyrimPhysicsWorld::get()->m_enableWind) {
 			// Wind is off in the config; explicitly clear any residual force.
