@@ -288,6 +288,16 @@ bool SMPDebug_Execute(
 	if (_strnicmp(buffer, "reset", MAX_PATH) == 0) {
 		RE::ConsoleLog::GetSingleton()->Print("running full smp reset");
 		hdt::loadConfig();
+
+		if (!hdt::SkyrimPhysicsWorld::get()->m_enableWind) {
+			// Wind is off in the config; explicitly clear any residual force.
+			hdt::SkyrimPhysicsWorld::get()->setWind(RE::NiPoint3{ 0, 0, 0 }, 0.f, 1);
+		} else {
+			// Wind is enabled. Force an immediate weather tick to apply new settings,
+			// allowing it to interpolate smoothly from its current vector.
+			hdt::WeatherManager::forceWeatherUpdate();
+		}
+
 		hdt::SkyrimPhysicsWorld::get()->resetTransformsToOriginal();
 		const RE::MenuOpenCloseEvent e{ "", false };
 		hdt::ActorManager::instance()->ProcessEvent(&e, nullptr);
