@@ -40,59 +40,6 @@ Fork of [https://github.com/Karonar1/hdtSMP64] by Karonar1, of fork of [version]
 - New bones from facegen files should now be added to the head instead of the NPC root, so they should be
   positioned correctly if there is no physics for them or after a reset.
 
-## CUDA support
-
-CUDA support is disabled by default, but can be enabled in configs.xml or from the console. It will
-automatically fall back to the CPU algorithm if you do not have any CUDA capable cards. However, it does not
-check capabilities of any cards it finds, so may crash if your card is too old. It was developed for a
-GeForce 10 series card, so should work on those or anything newer.
-
-The absolute minimum required compute capability is 3.5, to support dynamic parallelism. However, the plugin
-is compiled for compute capability 5.0 for better performance with atomic operations. Therefore you will need
-at least a Maxwell card to use the stock plugin, or a late model Kepler card if you compile it yourself.
-
-If you have more than one CUDA-capable card, you can select the one used for physics calculations in the
-configuration file. The code is designed to allow it to be changed at runtime, but there is currently no
-console command to do this. By default it will use device 0, which is usually the most powerful card
-available.
-
-The following parts of the collision algorithm are currently GPU accelerated:
-
-- Vertex position calculations for skinned mesh bodies
-- Collider bounding box calculations for per-vertex and per-triangle shapes
-- Aggregate bounding box calculation for internal nodes of collider trees
-- Building collider lists for the final collision check
-- Sphere-sphere and sphere-triangle collision checks
-- Merging collision results (note that this may reduce performance for objects with lots of bones, as the
-  merge buffer can get quite big - still working on this!)
-
-The following parts are still CPU-based:
-
-- Converting collision results to manifolds for the Bullet library to work with
-- And, of course, the solver itself, which is part of the Bullet library, not the HDT-SMP plugin
-
-This is still experimental, and may not give good performance. The old CPU collision algorithm was heavily
-optimized, so matching its framerate is not easy. You will need a high end GPU and a low end CPU to see any
-real performance benefits.
-
-- On a 6850K processor (6 cores, 3.6GHz) with a 1080Ti GPU, framerate in crowded areas is a little worse
-  than with the CPU-only algorithm. Most of the time, both algorithms easily reach the framerate cap at
-  60fps.
-- On the same hardware with only two cores enabled, the total collision time is around 2-3 times faster on
-  GPU than CPU. Of course, this translates to a less impressive framerate difference, because collision
-  checking is only one part of the HDT-SMP algorithm.
-
-## Radeon support?
-
-Nope, sorry. CUDA and nVidia cards are pretty much the industry standard for scientific computing, so that's
-what I use. In any case, I can't support GPU architectures that I don't have. The plugin should work fine in
-CPU mode with any type of card - I have tested it with Radeon 7850 and no nVidia drivers installed.
-
-The plugin will use the most powerful available CUDA-capable card, regardless of whether it's being used for
-anything else. In theory, it's possible to have a Radeon as the primary graphics card, and an nVidia card in
-the same machine for CUDA and physics. I've tested this with two GeForce cards (a 1080Ti and a 1030) in the
-same system, but not a Radeon and a GeForce.
-
 ## Note about NPC head parts
 
 Head parts work fine for NPCs without valid facegen data, but this isn't very useful because it triggers the
@@ -130,7 +77,6 @@ The plugin recognizes the following optional parameters:
 
 ## Known issues
 
-- CUDA Is Currently un-defined and compiling with it results in a PC binary(someone with experience with cuda and CMake should take a look, i don't use cuda so i wouldn't even know where to begin to add proper support for it).
 - Several options, including shape and collision definitions on bones, exist but don't seem to do anything.
 - Sphere-triangle collision check without penetration defined is obviously wrong, but fixing the test
   doesn't improve things. Needs further investigation.
@@ -155,11 +101,10 @@ The plugin recognizes the following optional parameters:
 - [PowerShell](https://github.com/PowerShell/PowerShell/releases/latest)
 - [Vcpkg](https://github.com/microsoft/vcpkg)
   - Add the environment variable `VCPKG_ROOT` with the value as the path to the folder containing vcpkg
-- [Visual Studio Community 2019](https://visualstudio.microsoft.com/)
+- [Visual Studio Community 2022](https://visualstudio.microsoft.com/)
   - Desktop development with C++
 - [CommonLibSSENG](https://github.com/alandtse/CommonLibVR/tree/ng)
   - Add this as as an environment variable `CommonLibSSEPath`
-- [CUDA Toolkit 11.6]
 
 ## User Requirements
 
@@ -199,10 +144,6 @@ vs2022-windows-nocuda<br>
 vs2022-windows-nocuda-avx<br>
 vs2022-windows-nocuda-avx2<br>
 vs2022-windows-nocuda-avx512<br>
-vs2022-windows-cuda<br>
-vs2022-windows-cuda-avx<br>
-vs2022-windows-cuda-avx2<br>
-vs2022-windows-cuda-avx512
 
 ## Credits
 
