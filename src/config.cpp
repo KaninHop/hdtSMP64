@@ -70,8 +70,7 @@ namespace hdt
 			case XMLReader::Inspected::StartTag:
 				if (reader.GetLocalName() == "logLevel") {
 					// Inverted so: 0 = critical, 1 = err, 2 = warn, 3 = info, 4 = debug, 5 = trace.
-					int originalVal = reader.readInt();
-					g_logLevel = 5 - std::clamp(originalVal, 0, 5);
+					g_logLevel = 5 - std::clamp(reader.readInt(), 0, 5);
 					spdlog::set_level(static_cast<spdlog::level::level_enum>(g_logLevel));
 				} else if (reader.GetLocalName() == "backupNodeByName") {
 					// Parse the string return value from reader.readText(); so we can have single strings instead of the group, example text -> "Virtual Hands, Virtual Body, Virtual Belly"... said text in a array like so -> { "Virtual Hands", "Virtual Body", "Virtual Belly"
@@ -182,12 +181,12 @@ namespace hdt
 		logger::debug("config: solver.erp = {}", SkyrimPhysicsWorld::get()->getSolverInfo().m_erp);
 		logger::debug("config: solver.min-fps = {}", SkyrimPhysicsWorld::get()->min_fps);
 		logger::debug("config: solver.maxSubSteps = {}", SkyrimPhysicsWorld::get()->m_maxSubSteps);
-		
+
 		logger::debug("config: wind.windStrength = {}", SkyrimPhysicsWorld::get()->m_windStrength);
 		logger::debug("config: wind.enabled = {}", SkyrimPhysicsWorld::get()->m_enableWind);
 		logger::debug("config: wind.distanceForNoWind = {}", SkyrimPhysicsWorld::get()->m_distanceForNoWind);
 		logger::debug("config: wind.distanceForMaxWind = {}", SkyrimPhysicsWorld::get()->m_distanceForMaxWind);
-		
+
 		logger::debug("config: smp.logLevel = {}", g_logLevel);
 		for (auto& item : Hooks::BipedAnimHooks::BackupNodes) {
 			logger::debug("config: smp.backupNodeByName += {}", item);
