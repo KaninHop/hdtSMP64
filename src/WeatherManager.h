@@ -14,7 +14,11 @@ namespace hdt
 		WeatherManager& operator=(const WeatherManager&) = delete;
 
 		static void runWeatherTick(float delta) { get()->runWeatherTickImpl(delta); }
-		static void forceWeatherUpdate() { get()->m_cooldown = 0.0f; get()->runWeatherTickImpl(0.0f); }
+		static void forceWeatherUpdate()
+		{
+			get()->m_cooldown = 0.0f;
+			get()->runWeatherTickImpl(0.0f);
+		}
 		static RE::NiPoint3 getWindDirection() { return get()->m_precipDirection; }
 
 	private:
