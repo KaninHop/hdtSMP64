@@ -507,9 +507,9 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_s
 	SKSE::Init(a_skse);
 
 	if constexpr (Plugin::BUILD_INFO.empty()) {
-		logger::info("{} v{}"sv, Plugin::NAME, Plugin::VERSION.string());
+		logger::info("{} v{} ({})"sv, Plugin::NAME, Plugin::VERSION.string(), Plugin::AVX_VARIANT);
 	} else {
-		logger::info("{} v{}-{}"sv, Plugin::NAME, Plugin::VERSION.string(), Plugin::BUILD_INFO);
+		logger::info("{} v{}-{} ({})"sv, Plugin::NAME, Plugin::VERSION.string(), Plugin::BUILD_INFO, Plugin::AVX_VARIANT);
 	}
 
 	const auto messaging = SKSE::GetMessagingInterface();

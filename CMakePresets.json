@@ -38,6 +38,10 @@
     },
     {
       "cacheVariables": {
+        "AVX_VARIANT": {
+          "type": "STRING",
+          "value": "noavx"
+        },
         "CMAKE_MSVC_RUNTIME_LIBRARY": {
           "type": "STRING",
           "value": "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
@@ -52,6 +56,10 @@
     },
     {
       "cacheVariables": {
+        "AVX_VARIANT": {
+          "type": "STRING",
+          "value": "avx"
+        },
         "VCPKG_TARGET_TRIPLET": {
           "type": "STRING",
           "value": "x64-windows-static-md-avx"
@@ -65,6 +73,10 @@
     },
     {
       "cacheVariables": {
+        "AVX_VARIANT": {
+          "type": "STRING",
+          "value": "avx2"
+        },
         "VCPKG_TARGET_TRIPLET": {
           "type": "STRING",
           "value": "x64-windows-static-md-avx2"
@@ -78,6 +90,10 @@
     },
     {
       "cacheVariables": {
+        "AVX_VARIANT": {
+          "type": "STRING",
+          "value": "avx512"
+        },
         "VCPKG_TARGET_TRIPLET": {
           "type": "STRING",
           "value": "x64-windows-static-md-avx512"
