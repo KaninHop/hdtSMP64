@@ -224,12 +224,11 @@ jobs:
         run: |
           $Variant = "${{ matrix.avx_variant }}"
           $DllPath = "out/build/${{ matrix.preset }}/plugins/SKSE/Plugins/hdtSMP64.dll"
-          $bytes = [System.IO.File]::ReadAllBytes($DllPath)
-          $text = [System.Text.Encoding]::UTF8.GetString($bytes)
-          if ($text.Contains($Variant)) {
-            Write-Host "AVX VARIANT VERIFIED: '$Variant' found in $DllPath"
+          $ProductVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($DllPath).ProductVersion
+          if ($ProductVersion -match [regex]::Escape("($Variant)")) {
+            Write-Host "AVX VARIANT VERIFIED: ProductVersion '$ProductVersion' contains '($Variant)'"
           } else {
-            Write-Error "AVX VARIANT MISSING: '$Variant' not found in $DllPath"
+            Write-Error "AVX VARIANT MISSING: ProductVersion '$ProductVersion' does not contain '($Variant)' in $DllPath"
             exit 1
           }
 
