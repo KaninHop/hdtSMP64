@@ -129,20 +129,28 @@ jobs:
         include:
           - preset: vs2022-windows-nocuda
             cuda: false
+            avx_variant: noavx
           - preset: vs2022-windows-nocuda-avx
             cuda: false
+            avx_variant: avx
           - preset: vs2022-windows-nocuda-avx2
             cuda: false
+            avx_variant: avx2
           - preset: vs2022-windows-nocuda-avx512
             cuda: false
+            avx_variant: avx512
           - preset: vs2022-windows-cuda
             cuda: true
+            avx_variant: noavx
           - preset: vs2022-windows-cuda-avx
             cuda: true
+            avx_variant: avx
           - preset: vs2022-windows-cuda-avx2
             cuda: true
+            avx_variant: avx2
           - preset: vs2022-windows-cuda-avx512
             cuda: true
+            avx_variant: avx512
 
     steps:
       - name: Checkout the repository
@@ -208,6 +216,19 @@ jobs:
             Write-Host "BUILD INFO VERIFIED: '$BuildInfo' found in $DllPath"
           } else {
             Write-Error "BUILD INFO MISSING: '$BuildInfo' not found in $DllPath"
+            exit 1
+          }
+
+      - name: Verify AVX variant embedded in DLL
+        shell: pwsh
+        run: |
+          $Variant = "${{ matrix.avx_variant }}"
+          $DllPath = "out/build/${{ matrix.preset }}/plugins/SKSE/Plugins/hdtSMP64.dll"
+          $ProductVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($DllPath).ProductVersion
+          if ($ProductVersion -match [regex]::Escape("($Variant)")) {
+            Write-Host "AVX VARIANT VERIFIED: ProductVersion '$ProductVersion' contains '($Variant)'"
+          } else {
+            Write-Error "AVX VARIANT MISSING: ProductVersion '$ProductVersion' does not contain '($Variant)' in $DllPath"
             exit 1
           }
 
