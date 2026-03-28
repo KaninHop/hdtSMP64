@@ -1,4 +1,4 @@
-# hdtSMP with CUDA for Skyrim SE/AE/VR
+# hdtSMP for Skyrim SE/AE/VR
 
 Fork of [https://github.com/Karonar1/hdtSMP64] by Karonar1, of fork of [version](https://github.com/aers/hdtSMP64) by aers, from
 [original code](https://github.com/HydrogensaysHDT/hdt-skyrimse-mods) by hydrogensaysHDT
@@ -9,11 +9,6 @@ Fork of [https://github.com/Karonar1/hdtSMP64] by Karonar1, of fork of [version]
 - Added maximum angle in ActorManager. A max angle can be used to specify physics on NPCs within a field of view.
   0 degrees represents straight in front of the camera. Default is 45 which is treated as + or - 45 degrees,
   so 90 total degrees. 180 would be all around.
-- Merged the CUDA version in the master branch through preprocessor directives to allow a continuous evolution,
-  and easier building.
-- Added CUDA support for several parts of collision detection (still a work in progress). This includes
-  everything that had OpenCL support in earlier releases, as well as the final collision check. CPU collision
-  is still fully supported, and is used as a fallback if a CUDA-capable GPU is not available.
 - Added distance check in ActorManager to disable NPCs more than a certain distance from the player. This
   resolves the massive FPS drop in certain cell transitions (such as Blue Palace -> Solitude). Default
   maximum distance is 500.
@@ -60,11 +55,6 @@ The plugin recognizes the following optional parameters:
 
 - `smp reset` reloads the configs.xml file, attempts to reload all meshes and reset the whole HDT-SMP system.
   However, it is a little buggy and may fail to reload some meshes or constraints properly.
-- `smp gpu` toggles the CUDA collision algorithm, if there is at least one CUDA device available. If there is
-  no device available, it does nothing.
-- `smp timing` starts a timing sequence for the collision detection algorithm. The next 200 frames will
-  switch between CPU and GPU collision. Once complete, mean and standard deviation of timings for the two
-  collision algorithms are displayed on the console.
 - `smp dumptree` dumps the entire node tree of the current targeted NPC to the log file.
 - `smp detail` shows extended details of all tracked actors, including active and inactive armour and head
   parts.
