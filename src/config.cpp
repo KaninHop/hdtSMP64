@@ -187,7 +187,9 @@ namespace hdt
 		logger::debug("config: wind.distanceForNoWind = {}", SkyrimPhysicsWorld::get()->m_distanceForNoWind);
 		logger::debug("config: wind.distanceForMaxWind = {}", SkyrimPhysicsWorld::get()->m_distanceForMaxWind);
 
-		logger::debug("config: smp.logLevel = {}", g_logLevel);
+		const auto configuredLogLevel = 5 - g_logLevel;
+		logger::debug("config: smp.logLevel = {}", configuredLogLevel);
+
 		for (auto& item : Hooks::BipedAnimHooks::BackupNodes) {
 			logger::debug("config: smp.backupNodeByName += {}", item);
 		}
