@@ -505,11 +505,8 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_s
 
 	//
 	hdt::loadConfig();
-
 	//
 	InitializeLog();
-	logger::info("{} v{}"sv, Plugin::NAME, Plugin::VERSION.string());
-	hdt::logConfig();
 
 	SKSE::Init(a_skse);
 
@@ -518,6 +515,8 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_s
 	} else {
 		logger::info("{} v{}-{}"sv, Plugin::NAME, Plugin::VERSION.string(), Plugin::BUILD_INFO);
 	}
+
+	hdt::logConfig();
 
 	const auto messaging = SKSE::GetMessagingInterface();
 	if (!messaging->RegisterListener("SKSE", MessageHandler)) {
