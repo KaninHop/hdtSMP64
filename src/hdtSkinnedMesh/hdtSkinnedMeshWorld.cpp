@@ -295,7 +295,7 @@ namespace hdt
 			if (constraint->isEnabled()) {
 				if (constraint->getRigidBodyA().isStaticOrKinematicObject() &&
 					constraint->getRigidBodyB().isStaticOrKinematicObject()) {
-					constraint->setEnabled(false); 
+					constraint->setEnabled(false);
 				}
 			}
 		}
