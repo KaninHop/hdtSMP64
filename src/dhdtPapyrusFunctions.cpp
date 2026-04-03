@@ -79,6 +79,7 @@ std::vector<bool> hdt::papyrus::impl::TogglePhysicsImpl(RE::Actor* actor, std::v
 		if (!skeleton.skeleton) {
 			continue;
 		}
+
 		auto owner = skeleton.skeleton->GetUserData();
 		if (!owner || owner->formID != actor->formID) {
 			continue;
@@ -94,34 +95,46 @@ std::vector<bool> hdt::papyrus::impl::TogglePhysicsImpl(RE::Actor* actor, std::v
 					if (!bone)
 						return;
 
-					if (!foundAny) {
-						result[i] = !bone->m_rig.isStaticOrKinematicObject();
-						foundAny = true;
+					const bool currentlyDynamic = !bone->m_rig.isStaticOrKinematicObject();
+
+					if (!std::exchange(foundAny, true)) {
+						result[i] = currentlyDynamic;
 					}
 
-					if (on) {
-						bone->m_rig.setCollisionFlags(bone->m_rig.getCollisionFlags() & ~btCollisionObject::CF_KINEMATIC_OBJECT);
-					} else {
-						bone->m_rig.setCollisionFlags(bone->m_rig.getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+					// Early out: Already in desired state, OR trying to make a 0 mass bone dynamic
+					if (currentlyDynamic == on || (on && bone->m_rig.getInvMass() <= 0.0f)) {
+						return;
 					}
 
-					bone->m_rig.setLinearVelocity(btVector3(0, 0, 0));
-					bone->m_rig.setAngularVelocity(btVector3(0, 0, 0));
+					// Toggle the kinematic flag on/off
+					// Note: Because we don't use CF_STATIC_OBJECT, we can get away with this without removing/re-adding the object.
+					// Static objects receive very different treatment in Bullet!
+					const auto flags = bone->m_rig.getCollisionFlags();
+					bone->m_rig.setCollisionFlags(on ? (flags & ~btCollisionObject::CF_KINEMATIC_OBJECT) : (flags | btCollisionObject::CF_KINEMATIC_OBJECT));
+
+					// Wipe velocities/forces so the bone doesn't jump or explode when toggled
+					static const btVector3 zero(0, 0, 0);
+					bone->m_rig.clearForces();
+					bone->m_rig.setLinearVelocity(zero);
+					bone->m_rig.setAngularVelocity(zero);
+					bone->m_rig.setInterpolationLinearVelocity(zero);
+					bone->m_rig.setInterpolationAngularVelocity(zero);
 				};
 
 				for (auto& armor : skeleton.getArmors()) {
-					if (!armor.m_physics)
-						continue;
-					processBone(armor.m_physics->findBone(boneNames[i]));
+					if (armor.m_physics) {
+						processBone(armor.m_physics->findBone(boneNames[i]));
+					}
 				}
 
 				for (auto& headPart : skeleton.head.headParts) {
-					if (!headPart.m_physics)
-						continue;
-					processBone(headPart.m_physics->findBone(boneNames[i]));
+					if (headPart.m_physics) {
+						processBone(headPart.m_physics->findBone(boneNames[i]));
+					}
 				}
 			}
 		}
+		break;
 	}
 
 	return result;
@@ -150,13 +163,10 @@ void hdt::papyrus::impl::ResetPhysicsImpl(RE::Actor* actor, bool full)
 			continue;
 		}
 
-		{
-			auto simLock = hdt::SkyrimPhysicsWorld::get()->lockSimulation();
-			if (full) {
-				skeleton.reloadMeshes();
-			} else {
-				skeleton.softReloadMeshes();
-			}
+		if (full) {
+			skeleton.reloadMeshes();
+		} else {
+			skeleton.softReloadMeshes();
 		}
 
 		break;
@@ -257,31 +267,34 @@ bool hdt::papyrus::impl::ReloadPhysicsFileImpl(uint32_t on_actor_formID, uint32_
 						return false;
 					}
 
+					bool wasActive = (armor.state() == hdt::ActorManager::ItemState::e_Active);
+					RE::BSTSmartPointer<SkyrimSystem> oldSystem = armor.m_physics;
+
+					// Gotta detach it from Bullet to safetly transferCurrentPosesBetweenSystems
+					if (armor.hasPhysics()) {
+						armor.clearPhysics();
+					}
+
+					auto renameMap = armor.renameMap;
+
 					RE::BSTSmartPointer<SkyrimSystem> system;
 
-					{
-						auto simLock = hdt::SkyrimPhysicsWorld::get()->lockSimulation();
-						system = SkyrimSystemCreator().createOrUpdateSystem(skeleton.npc.get(), armor.armorWorn.get(), &armor.physicsFile, std::move(armor.renameMap), armor.m_physics.get());
+					system = SkyrimSystemCreator().createOrUpdateSystem(skeleton.npc.get(), armor.armorWorn.get(), &armor.physicsFile, std::move(renameMap), oldSystem.get());
 
-						if (!system) {
-							if (armor.hasPhysics()) {
-								armor.clearPhysics();
-							}
-						} else {
-							system->block_resetting = true;
+					if (system) {
+						system->block_resetting = true;
 
-							if (armor.hasPhysics()) {
-								util::transferCurrentPosesBetweenSystems(armor.m_physics.get(), system.get());
-							}
-
-							armor.setPhysics(system, true);
-
-							system->block_resetting = false;
+						if (oldSystem) {
+							util::transferCurrentPosesBetweenSystems(oldSystem.get(), system.get());
 						}
+
+						armor.setPhysics(system, wasActive);
+
+						system->block_resetting = false;
 					}
 
 					if (verbose_log) {
-						RE::ConsoleLog::GetSingleton()->Print("[DynamicHDT] -- Physics file path switched, now is: \"{}\".", armor.physicsFile.first.c_str());
+						RE::ConsoleLog::GetSingleton()->Print("[DynamicHDT] -- Physics file path switched, now is: \"%s\".", armor.physicsFile.first.c_str());
 					}
 
 					succeeded = true;
@@ -290,14 +303,13 @@ bool hdt::papyrus::impl::ReloadPhysicsFileImpl(uint32_t on_actor_formID, uint32_
 		}
 	}
 
-	//Push into global override data
 	if (persist) {
 		auto OM = Override::OverrideManager::GetSingleton();
 		OM->registerOverride(on_actor_formID, old_physics_file_path, std::string(physics_file_path));
 	}
 
 	if (verbose_log) {
-		RE::ConsoleLog::GetSingleton()->Print("[DynamicHDT] -- Character (%08X) {}, ArmorAddon (%08X) {}.", on_actor_formID, character_found ? "found" : "not found", on_item_formID, armor_addon_found ? "found" : "not found");
+		RE::ConsoleLog::GetSingleton()->Print("[DynamicHDT] -- Character (%08X) %s, ArmorAddon (%08X) %s.", on_actor_formID, character_found ? "found" : "not found", on_item_formID, armor_addon_found ? "found" : "not found");
 	}
 
 	if (verbose_log && succeeded) {
@@ -362,30 +374,26 @@ bool hdt::papyrus::impl::SwapPhysicsFileImpl(uint32_t on_actor_formID, std::stri
 						return false;
 					}
 
-					RE::BSTSmartPointer<SkyrimSystem> system;
+					bool wasActive = (armor.state() == hdt::ActorManager::ItemState::e_Active);
+					RE::BSTSmartPointer<SkyrimSystem> oldSystem = armor.m_physics;
 
-					{
-						auto simLock = SkyrimPhysicsWorld::get()->lockSimulation();
-						system = SkyrimSystemCreator().createOrUpdateSystem(skeleton.npc.get(), armor.armorWorn.get(), &armor.physicsFile, std::move(armor.renameMap), armor.m_physics.get());
-
-						if (!system) {
-							if (armor.hasPhysics()) {
-								armor.clearPhysics();
-							}
-						} else {
-							system->block_resetting = true;
-
-							if (armor.hasPhysics()) {
-								util::transferCurrentPosesBetweenSystems(armor.m_physics.get(), system.get());
-							}
-
-							armor.setPhysics(system, true);
-							system->block_resetting = false;
-						}
+					// Gotta detach it from Bullet to safetly transferCurrentPosesBetweenSystems
+					if (armor.hasPhysics()) {
+						armor.clearPhysics();
 					}
 
-					if (verbose_log) {
-						RE::ConsoleLog::GetSingleton()->Print("[DynamicHDT] -- Physics file path switched, now is: \"{}\".", armor.physicsFile.first.c_str());
+					auto renameMap = armor.renameMap;
+					RE::BSTSmartPointer<SkyrimSystem> system = SkyrimSystemCreator().createOrUpdateSystem(skeleton.npc.get(), armor.armorWorn.get(), &armor.physicsFile, std::move(renameMap), oldSystem.get());
+
+					if (system) {
+						system->block_resetting = true;
+
+						if (oldSystem) {
+							util::transferCurrentPosesBetweenSystems(oldSystem.get(), system.get());
+						}
+
+						armor.setPhysics(system, wasActive);
+						system->block_resetting = false;
 					}
 
 					succeeded = true;
