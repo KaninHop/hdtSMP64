@@ -68,6 +68,7 @@ namespace hdt
 
 		concurrency::task_group m_tasks;
 
+		bool m_pendingTransformUpdate = false;
 		bool m_useRealTime = false;
 		int min_fps = 60;
 		float m_budgetMs = 3.5f;
