@@ -8,7 +8,8 @@ bool RegisterFuncs(RE::BSScript::IVirtualMachine* registry)
 	registry->RegisterFunction("ReloadPhysicsFile", "DynamicHDT", hdt::papyrus::ReloadPhysicsFile);
 	registry->RegisterFunction("SwapPhysicsFile", "DynamicHDT", hdt::papyrus::SwapPhysicsFile);
 	registry->RegisterFunction("QueryCurrentPhysicsFile", "DynamicHDT", hdt::papyrus::QueryCurrentPhysicsFile);
-
+	registry->RegisterFunction("TogglePhysics", "DynamicHDT", hdt::papyrus::TogglePhysics);
+	registry->RegisterFunction("ResetPhysics", "DynamicHDT", hdt::papyrus::ResetPhysics);
 	//
 	return true;
 }
@@ -56,6 +57,106 @@ RE::BSFixedString hdt::papyrus::QueryCurrentPhysicsFile(RE::StaticFunctionTag*, 
 	}
 
 	return impl::QueryCurrentPhysicsFileImpl(on_actor->formID, on_item->formID, verbose_log).c_str();
+}
+
+std::vector<bool> hdt::papyrus::TogglePhysics(RE::StaticFunctionTag*, RE::Actor* actor, std::vector<RE::BSFixedString> boneNames, bool on)
+{
+	if (!actor || boneNames.empty()) {
+		return std::vector<bool>();
+	}
+	return impl::TogglePhysicsImpl(actor, boneNames, on);
+}
+
+std::vector<bool> hdt::papyrus::impl::TogglePhysicsImpl(RE::Actor* actor, std::vector<RE::BSFixedString>& boneNames, bool on)
+{
+	std::vector<bool> result(boneNames.size(), false);
+
+	const auto AM = hdt::ActorManager::instance();
+	auto& skeletons = AM->getSkeletons();
+
+	for (auto& skeleton : skeletons) {
+		if (!skeleton.skeleton) {
+			continue;
+		}
+		auto owner = skeleton.skeleton->GetUserData();
+		if (!owner || owner->formID != actor->formID) {
+			continue;
+		}
+
+		hdt::SkyrimPhysicsWorld::get()->suspendSimulationUntilFinished([&]() {
+			for (size_t i = 0; i < boneNames.size(); ++i) {
+				bool foundAny = false;
+
+				auto processBone = [&](SkinnedMeshBone* bone) {
+					if (!bone)
+						return;
+
+					// Record previous state on first find for this bone name
+					if (!foundAny) {
+						result[i] = !bone->m_rig.isStaticOrKinematicObject();
+						foundAny = true;
+					}
+
+					if (on) {
+						bone->m_rig.setCollisionFlags(bone->m_rig.getCollisionFlags() & ~btCollisionObject::CF_KINEMATIC_OBJECT);
+					} else {
+						bone->m_rig.setCollisionFlags(bone->m_rig.getCollisionFlags() | btCollisionObject::CF_KINEMATIC_OBJECT);
+					}
+
+					bone->m_rig.setLinearVelocity(btVector3(0, 0, 0));
+					bone->m_rig.setAngularVelocity(btVector3(0, 0, 0));
+				};
+
+				for (auto& armor : skeleton.getArmors()) {
+					if (!armor.m_physics)
+						continue;
+					processBone(armor.m_physics->findBone(boneNames[i]));
+				}
+
+				for (auto& headPart : skeleton.head.headParts) {
+					if (!headPart.m_physics)
+						continue;
+					processBone(headPart.m_physics->findBone(boneNames[i]));
+				}
+			}
+		});
+	}
+
+	return result;
+}
+
+void hdt::papyrus::ResetPhysics(RE::StaticFunctionTag*, RE::Actor* actor, bool full)
+{
+	if (!actor) {
+		return;
+	}
+	impl::ResetPhysicsImpl(actor, full);
+}
+
+void hdt::papyrus::impl::ResetPhysicsImpl(RE::Actor* actor, bool full)
+{
+	const auto AM = hdt::ActorManager::instance();
+	auto& skeletons = AM->getSkeletons();
+
+	for (auto& skeleton : skeletons) {
+		if (!skeleton.skeleton) {
+			continue;
+		}
+		auto owner = skeleton.skeleton->GetUserData();
+		if (!owner || owner->formID != actor->formID) {
+			continue;
+		}
+
+		hdt::SkyrimPhysicsWorld::get()->suspendSimulationUntilFinished([&]() {
+			if (full) {
+				skeleton.reloadMeshes();
+			} else {
+				skeleton.softReloadMeshes();
+			}
+		});
+
+		break;
+	}
 }
 
 //

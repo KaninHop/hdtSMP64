@@ -143,6 +143,7 @@ namespace hdt
 
 			// bool deactivate(); // FIXME useless?
 			void reloadMeshes();
+			void softReloadMeshes();
 
 			void scanHead();
 			void processGeometry(RE::BSFaceGenNiNode* head, RE::BSGeometry* geometry);

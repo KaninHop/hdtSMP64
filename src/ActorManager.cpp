@@ -1117,6 +1117,40 @@ namespace hdt
 		scanHead();
 	}
 
+	// Reload meshes without entirely wiping their physics
+	void ActorManager::Skeleton::softReloadMeshes()
+	{
+		for (auto& i : armors) {
+			RE::BSTSmartPointer<SkyrimSystem> oldSystem = i.m_physics;
+
+			i.clearPhysics();
+
+			if (!isFirstPersonSkeleton(skeleton.get())) {
+				auto renameMap = i.renameMap;
+				auto system = SkyrimSystemCreator().createOrUpdateSystem(
+					npc.get(),
+					i.armorWorn.get(),
+					&i.physicsFile,
+					std::move(renameMap),
+					oldSystem.get()); 
+
+				if (system) {
+					system->block_resetting = true;
+
+					if (oldSystem) {
+						hdt::util::transferCurrentPosesBetweenSystems(
+							oldSystem.get(), system.get());
+					}
+
+					i.setPhysics(system, isActive);
+					hasPhysics = true;
+					system->block_resetting = false;
+				}
+			}
+		}
+		scanHead();
+	}
+
 	void ActorManager::Skeleton::scanHead()
 	{
 		if (isFirstPersonSkeleton(this->skeleton.get())) {
