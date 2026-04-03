@@ -229,6 +229,7 @@ namespace hdt
 
 		bool skeletonNeedsParts(RE::NiNode* skeleton);
 		std::vector<Skeleton>& getSkeletons();  //Altered by Dynamic HDT
+		std::unique_lock<std::recursive_mutex> lockGuard() { return std::unique_lock(m_lock); }
 
 		bool m_skinNPCFaceParts = true;
 		bool m_disableSMPHairWhenWigEquipped = false;

@@ -123,7 +123,7 @@ namespace hdt
 
 	void SkyrimPhysicsWorld::doUpdate2ndStep(float, const float tick, const float remainingTimeStep)
 	{
-		if (m_suspended || m_isStasis)
+		if (m_suspended)
 			return;
 
 		std::lock_guard<decltype(m_lock)> l(m_lock);
@@ -157,11 +157,10 @@ namespace hdt
 		}
 	}
 
-	void SkyrimPhysicsWorld::suspendSimulationUntilFinished(std::function<void(void)> process)
+	std::unique_lock<std::mutex> SkyrimPhysicsWorld::lockSimulation()
 	{
-		this->m_isStasis = true;
-		process();
-		this->m_isStasis = false;
+		m_tasks.wait();
+		return std::unique_lock(m_lock);
 	}
 
 	btVector3 SkyrimPhysicsWorld::applyTranslationOffset()
@@ -339,9 +338,9 @@ namespace hdt
 
 		float interval = (m_useRealTime ? RE::BSTimer::GetSingleton()->realTimeDelta : RE::BSTimer::GetSingleton()->delta);
 
-		if (interval > FLT_EPSILON && !m_suspended && !m_isStasis && !m_systems.empty()) {
+		if (interval > FLT_EPSILON && !m_suspended && !m_systems.empty()) {
 			doUpdate(interval);
-		} else if (m_isStasis || (m_suspended && !m_loading)) {
+		} else if (m_suspended && !m_loading) {
 			writeTransform();
 		}
 

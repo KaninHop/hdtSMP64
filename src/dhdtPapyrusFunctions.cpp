@@ -72,6 +72,7 @@ std::vector<bool> hdt::papyrus::impl::TogglePhysicsImpl(RE::Actor* actor, std::v
 	std::vector<bool> result(boneNames.size(), false);
 
 	const auto AM = hdt::ActorManager::instance();
+	auto guard = AM->lockGuard();
 	auto& skeletons = AM->getSkeletons();
 
 	for (auto& skeleton : skeletons) {
@@ -83,7 +84,9 @@ std::vector<bool> hdt::papyrus::impl::TogglePhysicsImpl(RE::Actor* actor, std::v
 			continue;
 		}
 
-		hdt::SkyrimPhysicsWorld::get()->suspendSimulationUntilFinished([&]() {
+		{
+			auto simLock = hdt::SkyrimPhysicsWorld::get()->lockSimulation();
+
 			for (size_t i = 0; i < boneNames.size(); ++i) {
 				bool foundAny = false;
 
@@ -91,7 +94,6 @@ std::vector<bool> hdt::papyrus::impl::TogglePhysicsImpl(RE::Actor* actor, std::v
 					if (!bone)
 						return;
 
-					// Record previous state on first find for this bone name
 					if (!foundAny) {
 						result[i] = !bone->m_rig.isStaticOrKinematicObject();
 						foundAny = true;
@@ -119,7 +121,7 @@ std::vector<bool> hdt::papyrus::impl::TogglePhysicsImpl(RE::Actor* actor, std::v
 					processBone(headPart.m_physics->findBone(boneNames[i]));
 				}
 			}
-		});
+		}
 	}
 
 	return result;
@@ -136,6 +138,7 @@ void hdt::papyrus::ResetPhysics(RE::StaticFunctionTag*, RE::Actor* actor, bool f
 void hdt::papyrus::impl::ResetPhysicsImpl(RE::Actor* actor, bool full)
 {
 	const auto AM = hdt::ActorManager::instance();
+	auto guard = AM->lockGuard();
 	auto& skeletons = AM->getSkeletons();
 
 	for (auto& skeleton : skeletons) {
@@ -147,13 +150,14 @@ void hdt::papyrus::impl::ResetPhysicsImpl(RE::Actor* actor, bool full)
 			continue;
 		}
 
-		hdt::SkyrimPhysicsWorld::get()->suspendSimulationUntilFinished([&]() {
+		{
+			auto simLock = hdt::SkyrimPhysicsWorld::get()->lockSimulation();
 			if (full) {
 				skeleton.reloadMeshes();
 			} else {
 				skeleton.softReloadMeshes();
 			}
-		});
+		}
 
 		break;
 	}
@@ -194,6 +198,7 @@ bool hdt::papyrus::impl::ReloadPhysicsFileImpl(uint32_t on_actor_formID, uint32_
 {
 	const auto& AM = hdt::ActorManager::instance();
 
+	auto guard = AM->lockGuard();
 	auto& skeletons = AM->getSkeletons();
 
 	bool character_found = false, armor_addon_found = false, succeeded = false;
@@ -254,7 +259,8 @@ bool hdt::papyrus::impl::ReloadPhysicsFileImpl(uint32_t on_actor_formID, uint32_
 
 					RE::BSTSmartPointer<SkyrimSystem> system;
 
-					hdt::SkyrimPhysicsWorld::get()->suspendSimulationUntilFinished([&]() {
+					{
+						auto simLock = hdt::SkyrimPhysicsWorld::get()->lockSimulation();
 						system = SkyrimSystemCreator().createOrUpdateSystem(skeleton.npc.get(), armor.armorWorn.get(), &armor.physicsFile, std::move(armor.renameMap), armor.m_physics.get());
 
 						if (!system) {
@@ -272,7 +278,7 @@ bool hdt::papyrus::impl::ReloadPhysicsFileImpl(uint32_t on_actor_formID, uint32_
 
 							system->block_resetting = false;
 						}
-					});
+					}
 
 					if (verbose_log) {
 						RE::ConsoleLog::GetSingleton()->Print("[DynamicHDT] -- Physics file path switched, now is: \"{}\".", armor.physicsFile.first.c_str());
@@ -305,6 +311,7 @@ bool hdt::papyrus::impl::SwapPhysicsFileImpl(uint32_t on_actor_formID, std::stri
 {
 	const auto& AM = hdt::ActorManager::instance();
 
+	auto guard = AM->lockGuard();
 	auto& skeletons = AM->getSkeletons();
 
 	bool character_found = false, armor_addon_found = false, succeeded = false;
@@ -357,7 +364,8 @@ bool hdt::papyrus::impl::SwapPhysicsFileImpl(uint32_t on_actor_formID, std::stri
 
 					RE::BSTSmartPointer<SkyrimSystem> system;
 
-					SkyrimPhysicsWorld::get()->suspendSimulationUntilFinished([&]() {
+					{
+						auto simLock = SkyrimPhysicsWorld::get()->lockSimulation();
 						system = SkyrimSystemCreator().createOrUpdateSystem(skeleton.npc.get(), armor.armorWorn.get(), &armor.physicsFile, std::move(armor.renameMap), armor.m_physics.get());
 
 						if (!system) {
@@ -374,7 +382,7 @@ bool hdt::papyrus::impl::SwapPhysicsFileImpl(uint32_t on_actor_formID, std::stri
 							armor.setPhysics(system, true);
 							system->block_resetting = false;
 						}
-					});
+					}
 
 					if (verbose_log) {
 						RE::ConsoleLog::GetSingleton()->Print("[DynamicHDT] -- Physics file path switched, now is: \"{}\".", armor.physicsFile.first.c_str());
@@ -406,6 +414,7 @@ std::string hdt::papyrus::impl::QueryCurrentPhysicsFileImpl(uint32_t on_actor_fo
 {
 	const auto& AM = hdt::ActorManager::instance();
 
+	auto guard = AM->lockGuard();
 	auto& skeletons = AM->getSkeletons();
 
 	bool character_found = false, armor_addon_found = false, succeeded = false;

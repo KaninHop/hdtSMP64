@@ -52,8 +52,9 @@ namespace hdt
 			}
 		}
 
-		void suspendSimulationUntilFinished(std::function<void(void)> process);
-		std::atomic_bool m_isStasis = false;
+		// This is used for when you want to mutate some physics objects without causing problems
+		// Bullet is VERY sensitive to changes during simulation!
+		std::unique_lock<std::mutex> lockSimulation();
 
 		btVector3 applyTranslationOffset();
 		void restoreTranslationOffset(const btVector3&);
