@@ -1132,7 +1132,7 @@ namespace hdt
 					i.armorWorn.get(),
 					&i.physicsFile,
 					std::move(renameMap),
-					oldSystem.get()); 
+					oldSystem.get());
 
 				if (system) {
 					system->block_resetting = true;
