@@ -1120,35 +1120,53 @@ namespace hdt
 	// Reload meshes without entirely wiping their physics
 	void ActorManager::Skeleton::softReloadMeshes()
 	{
-		for (auto& i : armors) {
-			RE::BSTSmartPointer<SkyrimSystem> oldSystem = i.m_physics;
+		auto reloadPhysicsItem = [&](auto& item, RE::NiAVObject* model, const auto& renameMapSrc, bool itemActive) {
+			RE::BSTSmartPointer<SkyrimSystem> oldSystem = item.m_physics;
+			item.clearPhysics();
 
-			i.clearPhysics();
+			if (!model || isFirstPersonSkeleton(skeleton.get()) || item.physicsFile.first.empty()) {
+				return;
+			}
 
-			if (!isFirstPersonSkeleton(skeleton.get())) {
-				auto renameMap = i.renameMap;
-				auto system = SkyrimSystemCreator().createOrUpdateSystem(
-					npc.get(),
-					i.armorWorn.get(),
-					&i.physicsFile,
-					std::move(renameMap),
-					oldSystem.get());
+			auto renameMap = renameMapSrc;
+			auto system = SkyrimSystemCreator().createOrUpdateSystem(npc.get(), model, &item.physicsFile, std::move(renameMap), nullptr);
 
-				if (system) {
-					system->block_resetting = true;
-
-					if (oldSystem) {
-						hdt::util::transferCurrentPosesBetweenSystems(
-							oldSystem.get(), system.get());
-					}
-
-					i.setPhysics(system, isActive);
-					hasPhysics = true;
-					system->block_resetting = false;
+			if (system) {
+				system->block_resetting = true;
+				if (oldSystem) {
+					hdt::util::transferCurrentPosesBetweenSystems(oldSystem.get(), system.get());
 				}
+
+				item.setPhysics(system, itemActive);
+				hasPhysics = true;
+				system->block_resetting = false;
+			}
+		};
+
+		for (auto& armor : armors) {
+			reloadPhysicsItem(armor, armor.armorWorn.get(), armor.renameMap, isActive);
+		}
+
+		if (isFirstPersonSkeleton(skeleton.get()) || !head.headNode) {
+			return;
+		}
+
+		if (instance()->m_disableSMPHairWhenWigEquipped && skeleton && skeleton->GetUserData()) {
+			if (auto actor = RE::TESForm::LookupByID<RE::Actor>(skeleton->GetUserData()->formID)) {
+				setHeadActiveIfNoHairArmor(actor, this);
 			}
 		}
-		scanHead();
+
+		std::unordered_set<std::string> physicsDupes;
+		for (auto& headPart : head.headParts) {
+			// Skip duplicate physics files, but ensure we clear their old physics
+			if (!headPart.physicsFile.first.empty() && !physicsDupes.insert(headPart.physicsFile.first).second) {
+				headPart.clearPhysics();
+				continue;
+			}
+
+			reloadPhysicsItem(headPart, head.headNode.get(), head.renameMap, isActive && head.isActive);
+		}
 	}
 
 	void ActorManager::Skeleton::scanHead()
