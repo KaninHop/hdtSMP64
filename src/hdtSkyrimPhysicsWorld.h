@@ -26,6 +26,7 @@ namespace hdt
 		void addSkinnedMeshSystem(SkinnedMeshSystem* system) override;
 		void removeSkinnedMeshSystem(SkinnedMeshSystem* system) override;
 		void removeSystemByNode(void* root);
+		using SkinnedMeshWorld::updateConstraintsForBone;
 
 		void resetTransformsToOriginal();
 		void resetSystems();

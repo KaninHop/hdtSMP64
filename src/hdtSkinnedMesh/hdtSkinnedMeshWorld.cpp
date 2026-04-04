@@ -114,6 +114,25 @@ namespace hdt
 		system->m_world = nullptr;
 	}
 
+	void SkinnedMeshWorld::updateConstraintsForBone(SkinnedMeshBone* bone)
+	{
+		if (!bone)
+			return;
+
+		int numConstraints = int(m_constraints.size());
+		for (int i = 0; i < numConstraints; i++) {
+			btTypedConstraint* constraint = m_constraints[i];
+
+			if (&constraint->getRigidBodyA() == &bone->m_rig ||
+				&constraint->getRigidBodyB() == &bone->m_rig) {
+				bool bothKinematic = constraint->getRigidBodyA().isStaticOrKinematicObject() &&
+				                     constraint->getRigidBodyB().isStaticOrKinematicObject();
+
+				constraint->setEnabled(!bothKinematic);
+			}
+		}
+	}
+
 	int SkinnedMeshWorld::stepSimulation(btScalar remainingTimeStep, int, btScalar fixedTimeStep)
 	{
 		applyGravity();

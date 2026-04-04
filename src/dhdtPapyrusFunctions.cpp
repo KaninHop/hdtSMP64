@@ -86,7 +86,8 @@ std::vector<bool> hdt::papyrus::impl::TogglePhysicsImpl(RE::Actor* actor, std::v
 		}
 
 		{
-			auto simLock = hdt::SkyrimPhysicsWorld::get()->lockSimulation();
+			auto world = hdt::SkyrimPhysicsWorld::get();
+			auto simLock = world->lockSimulation();
 
 			for (size_t i = 0; i < boneNames.size(); ++i) {
 				bool foundAny = false;
@@ -119,6 +120,8 @@ std::vector<bool> hdt::papyrus::impl::TogglePhysicsImpl(RE::Actor* actor, std::v
 					bone->m_rig.setAngularVelocity(zero);
 					bone->m_rig.setInterpolationLinearVelocity(zero);
 					bone->m_rig.setInterpolationAngularVelocity(zero);
+
+					world->updateConstraintsForBone(bone);
 				};
 
 				for (auto& armor : skeleton.getArmors()) {
