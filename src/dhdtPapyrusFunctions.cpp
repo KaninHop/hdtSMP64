@@ -148,7 +148,12 @@ void hdt::papyrus::ResetPhysics(RE::StaticFunctionTag*, RE::Actor* actor, bool f
 	if (!actor) {
 		return;
 	}
-	impl::ResetPhysicsImpl(actor, full);
+
+	SKSE::GetTaskInterface()->AddTask([handle = RE::ActorHandle(actor), full] {
+		if (auto a = handle.get()) {
+			impl::ResetPhysicsImpl(a.get(), full);
+		}
+	});
 }
 
 void hdt::papyrus::impl::ResetPhysicsImpl(RE::Actor* actor, bool full)
