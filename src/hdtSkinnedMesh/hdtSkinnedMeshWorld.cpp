@@ -288,6 +288,18 @@ namespace hdt
 		if (!m_collisionObjects.size())
 			return;
 
+		// Kinematic objects should never be able to collide, or move. Because: They're kinematic?
+		// This avoids broken configs, API misuse - etc. Better to check it every cycle for safety
+		for (int i = 0; i < m_constraints.size(); i++) {
+			btTypedConstraint* constraint = m_constraints[i];
+			if (constraint->isEnabled()) {
+				if (constraint->getRigidBodyA().isStaticOrKinematicObject() &&
+					constraint->getRigidBodyB().isStaticOrKinematicObject()) {
+					constraint->setEnabled(false);
+				}
+			}
+		}
+
 		btDiscreteDynamicsWorldMt::solveConstraints(solverInfo);
 
 		// the HDT manifolds are still recreated every frame, clear to prevent stale data.
