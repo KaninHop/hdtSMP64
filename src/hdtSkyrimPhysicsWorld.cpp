@@ -144,6 +144,7 @@ namespace hdt
 		stepSimulation(remainingTimeStep, 0, tick);
 		restoreTranslationOffset(offset);
 		m_accumulatedInterval = 0;
+		m_pendingTransformUpdate = true;
 
 		g_pluginInterface.onPostStep({ getCollisionObjectArray(), remainingTimeStep });
 
@@ -368,9 +369,10 @@ namespace hdt
 			QueryPerformanceCounter(&ticks);
 			int64_t t1 = ticks.QuadPart;
 
-			{
+			if (m_pendingTransformUpdate) {
 				std::lock_guard<decltype(m_lock)> l(m_lock);
 				writeTransform();
+				m_pendingTransformUpdate = false;
 			}
 
 			QueryPerformanceCounter(&ticks);
@@ -413,9 +415,10 @@ namespace hdt
 				avgTotalCpuWork);
 		} else {
 			m_tasks.wait();
-			{
+			if (m_pendingTransformUpdate) {
 				std::lock_guard<decltype(m_lock)> l(m_lock);
 				writeTransform();
+				m_pendingTransformUpdate = false;
 			}
 		}
 
