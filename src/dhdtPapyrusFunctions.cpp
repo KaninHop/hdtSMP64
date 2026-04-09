@@ -8,7 +8,8 @@ bool RegisterFuncs(RE::BSScript::IVirtualMachine* registry)
 	registry->RegisterFunction("ReloadPhysicsFile", "DynamicHDT", hdt::papyrus::ReloadPhysicsFile);
 	registry->RegisterFunction("SwapPhysicsFile", "DynamicHDT", hdt::papyrus::SwapPhysicsFile);
 	registry->RegisterFunction("QueryCurrentPhysicsFile", "DynamicHDT", hdt::papyrus::QueryCurrentPhysicsFile);
-
+	registry->RegisterFunction("TogglePhysics", "DynamicHDT", hdt::papyrus::TogglePhysics);
+	registry->RegisterFunction("ResetPhysics", "DynamicHDT", hdt::papyrus::ResetPhysics);
 	//
 	return true;
 }
@@ -58,6 +59,128 @@ RE::BSFixedString hdt::papyrus::QueryCurrentPhysicsFile(RE::StaticFunctionTag*, 
 	return impl::QueryCurrentPhysicsFileImpl(on_actor->formID, on_item->formID, verbose_log).c_str();
 }
 
+std::vector<bool> hdt::papyrus::TogglePhysics(RE::StaticFunctionTag*, RE::Actor* actor, std::vector<RE::BSFixedString> boneNames, bool on)
+{
+	if (!actor || boneNames.empty()) {
+		return std::vector<bool>();
+	}
+	return impl::TogglePhysicsImpl(actor, boneNames, on);
+}
+
+std::vector<bool> hdt::papyrus::impl::TogglePhysicsImpl(RE::Actor* actor, std::vector<RE::BSFixedString>& boneNames, bool on)
+{
+	std::vector<bool> result(boneNames.size(), false);
+
+	const auto AM = hdt::ActorManager::instance();
+	auto guard = AM->lockGuard();
+	auto& skeletons = AM->getSkeletons();
+
+	for (auto& skeleton : skeletons) {
+		if (!skeleton.skeleton) {
+			continue;
+		}
+
+		auto owner = skeleton.skeleton->GetUserData();
+		if (!owner || owner->formID != actor->formID) {
+			continue;
+		}
+
+		{
+			auto world = hdt::SkyrimPhysicsWorld::get();
+			auto simLock = world->lockSimulation();
+
+			for (size_t i = 0; i < boneNames.size(); ++i) {
+				bool foundAny = false;
+
+				auto processBone = [&](SkinnedMeshBone* bone) {
+					if (!bone)
+						return;
+
+					const bool currentlyDynamic = !bone->m_rig.isStaticOrKinematicObject();
+
+					if (!std::exchange(foundAny, true)) {
+						result[i] = currentlyDynamic;
+					}
+
+					// Early out: Already in desired state, OR trying to make a 0 mass bone dynamic
+					if (currentlyDynamic == on || (on && bone->m_rig.getInvMass() <= 0.0f)) {
+						return;
+					}
+
+					// Toggle the kinematic flag on/off
+					// Note: Because we don't use CF_STATIC_OBJECT, we can get away with this without removing/re-adding the object.
+					// Static objects receive very different treatment in Bullet!
+					const auto flags = bone->m_rig.getCollisionFlags();
+					bone->m_rig.setCollisionFlags(on ? (flags & ~btCollisionObject::CF_KINEMATIC_OBJECT) : (flags | btCollisionObject::CF_KINEMATIC_OBJECT));
+
+					// Wipe velocities/forces so the bone doesn't jump or explode when toggled
+					static const btVector3 zero(0, 0, 0);
+					bone->m_rig.clearForces();
+					bone->m_rig.setLinearVelocity(zero);
+					bone->m_rig.setAngularVelocity(zero);
+					bone->m_rig.setInterpolationLinearVelocity(zero);
+					bone->m_rig.setInterpolationAngularVelocity(zero);
+
+					world->updateConstraintsForBone(bone);
+				};
+
+				for (auto& armor : skeleton.getArmors()) {
+					if (armor.m_physics) {
+						processBone(armor.m_physics->findBone(boneNames[i]));
+					}
+				}
+
+				for (auto& headPart : skeleton.head.headParts) {
+					if (headPart.m_physics) {
+						processBone(headPart.m_physics->findBone(boneNames[i]));
+					}
+				}
+			}
+		}
+		break;
+	}
+
+	return result;
+}
+
+void hdt::papyrus::ResetPhysics(RE::StaticFunctionTag*, RE::Actor* actor, bool full)
+{
+	if (!actor) {
+		return;
+	}
+
+	SKSE::GetTaskInterface()->AddTask([handle = RE::ActorHandle(actor), full] {
+		if (auto a = handle.get()) {
+			impl::ResetPhysicsImpl(a.get(), full);
+		}
+	});
+}
+
+void hdt::papyrus::impl::ResetPhysicsImpl(RE::Actor* actor, bool full)
+{
+	const auto AM = hdt::ActorManager::instance();
+	auto guard = AM->lockGuard();
+	auto& skeletons = AM->getSkeletons();
+
+	for (auto& skeleton : skeletons) {
+		if (!skeleton.skeleton) {
+			continue;
+		}
+		auto owner = skeleton.skeleton->GetUserData();
+		if (!owner || owner->formID != actor->formID) {
+			continue;
+		}
+
+		if (full) {
+			skeleton.reloadMeshes();
+		} else {
+			skeleton.softReloadMeshes();
+		}
+
+		break;
+	}
+}
+
 //
 //UInt32 hdt::papyrus::FindOrCreateAnonymousSystem(StaticFunctionTag*, TESObjectARMA* system_model, bool verbose_log)
 //{
@@ -93,6 +216,7 @@ bool hdt::papyrus::impl::ReloadPhysicsFileImpl(uint32_t on_actor_formID, uint32_
 {
 	const auto& AM = hdt::ActorManager::instance();
 
+	auto guard = AM->lockGuard();
 	auto& skeletons = AM->getSkeletons();
 
 	bool character_found = false, armor_addon_found = false, succeeded = false;
@@ -151,30 +275,34 @@ bool hdt::papyrus::impl::ReloadPhysicsFileImpl(uint32_t on_actor_formID, uint32_
 						return false;
 					}
 
+					bool wasActive = (armor.state() == hdt::ActorManager::ItemState::e_Active);
+					RE::BSTSmartPointer<SkyrimSystem> oldSystem = armor.m_physics;
+
+					// Gotta detach it from Bullet to safely transferCurrentPosesBetweenSystems
+					if (armor.hasPhysics()) {
+						armor.clearPhysics();
+					}
+
+					auto renameMap = armor.renameMap;
+
 					RE::BSTSmartPointer<SkyrimSystem> system;
 
-					hdt::SkyrimPhysicsWorld::get()->suspendSimulationUntilFinished([&]() {
-						system = SkyrimSystemCreator().createOrUpdateSystem(skeleton.npc.get(), armor.armorWorn.get(), &armor.physicsFile, std::move(armor.renameMap), armor.m_physics.get());
+					system = SkyrimSystemCreator().createOrUpdateSystem(skeleton.npc.get(), armor.armorWorn.get(), &armor.physicsFile, std::move(renameMap), oldSystem.get());
 
-						if (!system) {
-							if (armor.hasPhysics()) {
-								armor.clearPhysics();
-							}
-						} else {
-							system->block_resetting = true;
+					if (system) {
+						system->block_resetting = true;
 
-							if (armor.hasPhysics()) {
-								util::transferCurrentPosesBetweenSystems(armor.m_physics.get(), system.get());
-							}
-
-							armor.setPhysics(system, true);
-
-							system->block_resetting = false;
+						if (oldSystem) {
+							util::transferCurrentPosesBetweenSystems(oldSystem.get(), system.get());
 						}
-					});
+
+						armor.setPhysics(system, wasActive);
+
+						system->block_resetting = false;
+					}
 
 					if (verbose_log) {
-						RE::ConsoleLog::GetSingleton()->Print("[DynamicHDT] -- Physics file path switched, now is: \"{}\".", armor.physicsFile.first.c_str());
+						RE::ConsoleLog::GetSingleton()->Print("[DynamicHDT] -- Physics file path switched, now is: \"%s\".", armor.physicsFile.first.c_str());
 					}
 
 					succeeded = true;
@@ -183,14 +311,13 @@ bool hdt::papyrus::impl::ReloadPhysicsFileImpl(uint32_t on_actor_formID, uint32_
 		}
 	}
 
-	//Push into global override data
 	if (persist) {
 		auto OM = Override::OverrideManager::GetSingleton();
 		OM->registerOverride(on_actor_formID, old_physics_file_path, std::string(physics_file_path));
 	}
 
 	if (verbose_log) {
-		RE::ConsoleLog::GetSingleton()->Print("[DynamicHDT] -- Character (%08X) {}, ArmorAddon (%08X) {}.", on_actor_formID, character_found ? "found" : "not found", on_item_formID, armor_addon_found ? "found" : "not found");
+		RE::ConsoleLog::GetSingleton()->Print("[DynamicHDT] -- Character (%08X) %s, ArmorAddon (%08X) %s.", on_actor_formID, character_found ? "found" : "not found", on_item_formID, armor_addon_found ? "found" : "not found");
 	}
 
 	if (verbose_log && succeeded) {
@@ -204,6 +331,7 @@ bool hdt::papyrus::impl::SwapPhysicsFileImpl(uint32_t on_actor_formID, std::stri
 {
 	const auto& AM = hdt::ActorManager::instance();
 
+	auto guard = AM->lockGuard();
 	auto& skeletons = AM->getSkeletons();
 
 	bool character_found = false, armor_addon_found = false, succeeded = false;
@@ -254,29 +382,26 @@ bool hdt::papyrus::impl::SwapPhysicsFileImpl(uint32_t on_actor_formID, std::stri
 						return false;
 					}
 
-					RE::BSTSmartPointer<SkyrimSystem> system;
+					bool wasActive = (armor.state() == hdt::ActorManager::ItemState::e_Active);
+					RE::BSTSmartPointer<SkyrimSystem> oldSystem = armor.m_physics;
 
-					SkyrimPhysicsWorld::get()->suspendSimulationUntilFinished([&]() {
-						system = SkyrimSystemCreator().createOrUpdateSystem(skeleton.npc.get(), armor.armorWorn.get(), &armor.physicsFile, std::move(armor.renameMap), armor.m_physics.get());
+					// Gotta detach it from Bullet to safely transferCurrentPosesBetweenSystems
+					if (armor.hasPhysics()) {
+						armor.clearPhysics();
+					}
 
-						if (!system) {
-							if (armor.hasPhysics()) {
-								armor.clearPhysics();
-							}
-						} else {
-							system->block_resetting = true;
+					auto renameMap = armor.renameMap;
+					RE::BSTSmartPointer<SkyrimSystem> system = SkyrimSystemCreator().createOrUpdateSystem(skeleton.npc.get(), armor.armorWorn.get(), &armor.physicsFile, std::move(renameMap), oldSystem.get());
 
-							if (armor.hasPhysics()) {
-								util::transferCurrentPosesBetweenSystems(armor.m_physics.get(), system.get());
-							}
+					if (system) {
+						system->block_resetting = true;
 
-							armor.setPhysics(system, true);
-							system->block_resetting = false;
+						if (oldSystem) {
+							util::transferCurrentPosesBetweenSystems(oldSystem.get(), system.get());
 						}
-					});
 
-					if (verbose_log) {
-						RE::ConsoleLog::GetSingleton()->Print("[DynamicHDT] -- Physics file path switched, now is: \"{}\".", armor.physicsFile.first.c_str());
+						armor.setPhysics(system, wasActive);
+						system->block_resetting = false;
 					}
 
 					succeeded = true;
@@ -305,6 +430,7 @@ std::string hdt::papyrus::impl::QueryCurrentPhysicsFileImpl(uint32_t on_actor_fo
 {
 	const auto& AM = hdt::ActorManager::instance();
 
+	auto guard = AM->lockGuard();
 	auto& skeletons = AM->getSkeletons();
 
 	bool character_found = false, armor_addon_found = false, succeeded = false;
