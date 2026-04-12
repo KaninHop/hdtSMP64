@@ -2,7 +2,7 @@ Scriptname DynamicHDT hidden
 
 ;PARAM:
 ;   new_physics_file_path   should be relative path which should look like the original xml path in nif file.
-;   on_ARMA_item     should be refering to an ArmorAddon(ARMA) object for this to function.
+;   on_ARMA_item     should be referring to an ArmorAddon(ARMA) object for this to function.
 ;   persist          whether to remember the ArmorAddon object so as to avoid resetting physics file on loading save or re-equipping.
 ;   
 ;Return:    true upon success
