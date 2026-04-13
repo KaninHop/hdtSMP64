@@ -1444,7 +1444,7 @@ namespace hdt
 				if (activeSkin && reinterpret_cast<uintptr_t>(activeSkin.get()) <= kCanonicalUserSpaceMax) {
 					auto skinData = activeSkin->skinData.get();
 					if (skinData && reinterpret_cast<uintptr_t>(skinData) <= kCanonicalUserSpaceMax && boneIdx < skinData->bones) {
-						if (activeSkin->bones) {
+						if (activeSkin->bones && reinterpret_cast<uintptr_t>(activeSkin->bones) <= kCanonicalUserSpaceMax) {
 							auto bone = activeSkin->bones[boneIdx];
 							if (isValidNiObject(bone)) {
 								boneName = bone->name;
@@ -1461,12 +1461,10 @@ namespace hdt
 					if (rd.skinInstance && reinterpret_cast<uintptr_t>(rd.skinInstance.get()) <= kCanonicalUserSpaceMax) {
 						auto skinData = rd.skinInstance->skinData.get();
 						if (skinData && reinterpret_cast<uintptr_t>(skinData) <= kCanonicalUserSpaceMax && boneIdx < skinData->bones) {
-							if (rd.skinInstance->bones) {
+							if (rd.skinInstance->bones && reinterpret_cast<uintptr_t>(rd.skinInstance->bones) <= kCanonicalUserSpaceMax) {
 								auto bone = rd.skinInstance->bones[boneIdx];
 								if (isValidNiObject(bone)) {
 									boneName = bone->name;
-								} else if (bone && reinterpret_cast<uintptr_t>(bone) <= kCanonicalUserSpaceMax) {
-									boneName = reinterpret_cast<const char*>(bone);
 								}
 							}
 						}
@@ -1478,14 +1476,12 @@ namespace hdt
 					const auto& spSkin = origNiGeom->GetRuntimeData().spSkinInstance;
 					if (spSkin && reinterpret_cast<uintptr_t>(spSkin.get()) <= kCanonicalUserSpaceMax) {
 						auto skinData = spSkin->skinData.get();
-						// Only proceed if skinData is mathematically valid (not garbage)
+						// Only proceed if skinData is mathematically valid (blocks the 0x10010000000000b3 garbage!)
 						if (skinData && reinterpret_cast<uintptr_t>(skinData) <= kCanonicalUserSpaceMax && boneIdx < skinData->bones) {
-							if (spSkin->bones) {
+							if (spSkin->bones && reinterpret_cast<uintptr_t>(spSkin->bones) <= kCanonicalUserSpaceMax) {
 								auto bone = spSkin->bones[boneIdx];
 								if (isValidNiObject(bone)) {
 									boneName = bone->name;
-								} else if (bone && reinterpret_cast<uintptr_t>(bone) <= kCanonicalUserSpaceMax) {
-									boneName = reinterpret_cast<const char*>(bone);
 								}
 							}
 						}
