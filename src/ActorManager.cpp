@@ -425,8 +425,13 @@ namespace hdt
 		const bool windEnabled = world->m_enableWind && !btFuzzyZero(wind.Length());
 
 		activeSkeletons = 0;
+		const float minCullingDistance2 = m_minCullingDistance * m_minCullingDistance;
 		for (auto& i : m_skeletons) {
-			if (!i.hasPhysics || !i.updateAttachedState(playerCell, activeSkeletons >= maxActiveSkeletons))
+			// Skeletons inside the minimum culling distance are kept active even when the budget cap
+			// is exceeded, so a shrinking auto-adjust cap can't strip physics from NPCs next to the camera.
+			const bool forceKeepNear = i.m_distanceFromCamera2 < minCullingDistance2;
+			const bool overBudget = activeSkeletons >= maxActiveSkeletons;
+			if (!i.hasPhysics || !i.updateAttachedState(playerCell, overBudget && !forceKeepNear))
 				continue;
 
 			activeSkeletons++;
