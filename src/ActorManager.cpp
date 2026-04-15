@@ -529,13 +529,14 @@ namespace hdt
 			if (m_autoAdjustMaxSkeletons) {
 				// Deadzones to prevent constantly switching back and fourth
 				if (averageProcessingTimeInMainLoop > maxBudgetTime) {
-					maxActiveSkeletons -= 2;
+					// When few skeletons active, step down by 1 to avoid over-correction
+					maxActiveSkeletons -= (activeSkeletons < 10) ? 1 : 2;
 				} else if (averageProcessingTimeInMainLoop < maxBudgetTime * 0.9f) {  // under 90% of budget
 					maxActiveSkeletons += 2;
 				}
 
-				// clamp the value to the m_maxActiveSkeletons value
-				maxActiveSkeletons = std::clamp(maxActiveSkeletons, 1, m_maxActiveSkeletons);
+				// clamp the value to the m_maxActiveSkeletons value, never go below 3
+				maxActiveSkeletons = std::clamp(maxActiveSkeletons, 3, m_maxActiveSkeletons);
 				frameCount = 1;
 
 			} else if (maxActiveSkeletons != m_maxActiveSkeletons)
