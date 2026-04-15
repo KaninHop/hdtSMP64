@@ -526,7 +526,7 @@ namespace hdt
 				averageProcessingTimeInMainLoop,
 				maxBudgetTime);
 
-			if (m_autoAdjustMaxSkeletons) {
+			if (m_autoAdjustMaxSkeletons && m_maxActiveSkeletons > 3) {
 				// Deadzones to prevent constantly switching back and fourth
 				if (averageProcessingTimeInMainLoop > maxBudgetTime) {
 					// When few skeletons active, step down by 1 to avoid over-correction
@@ -541,7 +541,7 @@ namespace hdt
 					maxActiveSkeletons += std::clamp(canAdd, 0, 2);
 				}
 
-				// clamp the value to the m_maxActiveSkeletons value, never go below 3
+				// clamp the adjusted value between 3 and m_maxActiveSkeletons
 				maxActiveSkeletons = std::clamp(maxActiveSkeletons, 3, m_maxActiveSkeletons);
 				frameCount = 1;
 
