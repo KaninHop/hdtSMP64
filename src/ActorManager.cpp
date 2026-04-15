@@ -531,8 +531,14 @@ namespace hdt
 				if (averageProcessingTimeInMainLoop > maxBudgetTime) {
 					// When few skeletons active, step down by 1 to avoid over-correction
 					maxActiveSkeletons -= (activeSkeletons < 10) ? 1 : 2;
-				} else if (averageProcessingTimeInMainLoop < maxBudgetTime * 0.9f) {  // under 90% of budget
-					maxActiveSkeletons += 2;
+				} else if (averageProcessingTimeInMainLoop < maxBudgetTime) {
+					// Scale up by however many skeletons fit within the remaining budget headroom, max of 2
+					// Falls back to +2 when no skeletons are active (timePerSkeleton == 0).
+					const float headroom = maxBudgetTime - averageProcessingTimeInMainLoop;
+					const int canAdd = (averageTimePerSkeletonInMainLoop > 0.f)
+					    ? static_cast<int>(headroom / averageTimePerSkeletonInMainLoop)
+					    : 2;
+					maxActiveSkeletons += std::clamp(canAdd, 0, 2);
 				}
 
 				// clamp the value to the m_maxActiveSkeletons value, never go below 3
