@@ -713,8 +713,11 @@ namespace hdt
 		auto ret = static_cast<RE::NiNode*>(src->CreateClone(c));
 		src->ProcessClone(c);
 
-		// FIXME: cloneHeadNodeTree just did this for ret, not both. Don't know if that matters. Armor parts need it on both.
-		renameTree(src, prefix, map);
+		// --FIXME: cloneHeadNodeTree just did this for ret, not both. Don't know if that matters. Armor parts need it on both.--
+		// FIX: We now know it DOES matter! Renaming the source tree for Head parts corrupts the shared npcFaceGeomNode cache
+		if (prefix.find("Armor") != std::string_view::npos) {
+			renameTree(src, prefix, map);
+		}
 		renameTree(ret, prefix, map);
 
 		return ret;
