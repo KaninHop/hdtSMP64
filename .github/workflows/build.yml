@@ -299,6 +299,7 @@ jobs:
         with:
           name: FSMP-${{ needs.prepare.outputs.tag_version }}
           path: FSMP-${{ needs.prepare.outputs.tag_version }}.zip
+          if-no-files-found: error
 
   release:
     needs: [prepare, package, check_messages]
