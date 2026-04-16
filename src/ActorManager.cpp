@@ -664,12 +664,12 @@ namespace hdt
 		return 0;
 	}
 
-	void ActorManager::Skeleton::doSkeletonMerge(RE::NiNode* dst, RE::NiNode* src, std::string_view prefix, std::unordered_map<RE::BSFixedString, RE::BSFixedString>& map)
+	void ActorManager::Skeleton::doSkeletonMerge(RE::NiNode* dst, RE::NiNode* src, std::string_view prefix, std::unordered_map<RE::BSFixedString, RE::BSFixedString>& map, bool renameSource)
 	{
-		doSkeletonMerge(dst, src, prefix, map, dst);
+		doSkeletonMerge(dst, src, prefix, map, dst, renameSource);
 	}
 
-	void ActorManager::Skeleton::doSkeletonMerge(RE::NiNode* dst, RE::NiNode* src, std::string_view prefix, std::unordered_map<RE::BSFixedString, RE::BSFixedString>& map, RE::NiNode* dstRoot)
+	void ActorManager::Skeleton::doSkeletonMerge(RE::NiNode* dst, RE::NiNode* src, std::string_view prefix, std::unordered_map<RE::BSFixedString, RE::BSFixedString>& map, RE::NiNode* dstRoot, bool renameSource)
 	{
 		const auto& children = src->GetChildren();
 
@@ -679,7 +679,7 @@ namespace hdt
 				continue;
 
 			if (!srcChild->name.size()) {
-				doSkeletonMerge(dst, srcChild, prefix, map, dstRoot);
+				doSkeletonMerge(dst, srcChild, prefix, map, dstRoot, renameSource);
 				continue;
 			}
 
@@ -693,14 +693,14 @@ namespace hdt
 			// TODO check it's not a lurker skeleton
 			auto dstChild = findNode(dstRoot, srcChild->name);
 			if (dstChild) {
-				doSkeletonMerge(dstChild, srcChild, prefix, map, dstRoot);
+				doSkeletonMerge(dstChild, srcChild, prefix, map, dstRoot, renameSource);
 			} else {
-				dst->AttachChild(cloneNodeTree(srcChild, prefix, map), false);
+				dst->AttachChild(cloneNodeTree(srcChild, prefix, map, renameSource), false);
 			}
 		}
 	}
 
-	RE::NiNode* ActorManager::Skeleton::cloneNodeTree(RE::NiNode* src, std::string_view prefix, std::unordered_map<RE::BSFixedString, RE::BSFixedString>& map)
+	RE::NiNode* ActorManager::Skeleton::cloneNodeTree(RE::NiNode* src, std::string_view prefix, std::unordered_map<RE::BSFixedString, RE::BSFixedString>& map, bool renameSource)
 	{
 		//
 		RE::NiCloningProcess c;
@@ -713,9 +713,9 @@ namespace hdt
 		auto ret = static_cast<RE::NiNode*>(src->CreateClone(c));
 		src->ProcessClone(c);
 
-		// --FIXME: cloneHeadNodeTree just did this for ret, not both. Don't know if that matters. Armor parts need it on both.--
-		// FIX: We now know it DOES matter! Renaming the source tree for Head parts corrupts the shared npcFaceGeomNode cache
-		if (prefix.find("Armor") != std::string_view::npos) {
+		// Renaming the source tree for Head parts corrupts the shared npcFaceGeomNode cache,
+		// so only rename the source for armor merges where the source is a per-attachment tree
+		if (renameSource) {
 			renameTree(src, prefix, map);
 		}
 		renameTree(ret, prefix, map);
@@ -1484,7 +1484,7 @@ namespace hdt
 			if (!boneNode && !hasMerged) {
 				logger::debug("Bone not found on skeleton, trying skeleton merge.");
 				if (this->head.headParts.back().origPartRootNode) {
-					doSkeletonMerge(npc.get(), head.headParts.back().origPartRootNode.get(), head.prefix, head.renameMap);
+					doSkeletonMerge(npc.get(), head.headParts.back().origPartRootNode.get(), head.prefix, head.renameMap, false);
 				} else if (this->head.npcFaceGeomNode) {
 					// Facegen data doesn't have any tree structure to the skeleton. We need to make any new
 					// nodes children of the head node, so that they move properly when there's no physics.
@@ -1506,7 +1506,7 @@ namespace hdt
 							}
 						}
 					}
-					doSkeletonMerge(npc.get(), this->head.npcFaceGeomNode.get(), head.prefix, head.renameMap);
+					doSkeletonMerge(npc.get(), this->head.npcFaceGeomNode.get(), head.prefix, head.renameMap, false);
 				}
 
 				hasMerged = true;
