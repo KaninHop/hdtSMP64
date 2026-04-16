@@ -257,7 +257,11 @@ jobs:
           cp -r temp-mcm/SKSE mcm_files/
           cp -r temp-mcm/Scripts mcm_files/
           cp -r temp-mcm/Source mcm_files/
-          [ -d temp-mcm/interface ] && cp -r temp-mcm/interface mcm_files/ || echo "No interface folder in FSMP-MCM, skipping."
+          if [ -d temp-mcm/interface ]; then
+            cp -r temp-mcm/interface mcm_files/
+          else
+            echo "No interface folder in FSMP-MCM, skipping."
+          fi
 
       - name: Organize and 7zip
         run: |
