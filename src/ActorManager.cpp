@@ -1527,7 +1527,21 @@ namespace hdt
 
 		if (hasRenames) {
 			for (auto& entry : head.renameMap) {
-				if ((this->head.headParts.back().origPartRootNode && findObject(this->head.headParts.back().origPartRootNode.get(), entry.first)) || (this->head.npcFaceGeomNode && findObject(this->head.npcFaceGeomNode.get(), entry.first))) {
+				bool inUse = false;
+
+				auto origPartRoot = this->head.headParts.back().origPartRootNode.get();
+				auto npcFaceGeom = this->head.npcFaceGeomNode.get();
+
+				// we must check for BOTH entry.first (original name) and entry.second (renamed name)
+				// If this geometry performed the skeleton merge, renameTree altered the names in the source tree to
+				// entry.second. If another geometry did the merge, the names remain entry.first
+				if (origPartRoot && (findObject(origPartRoot, entry.first) || findObject(origPartRoot, entry.second))) {
+					inUse = true;
+				} else if (npcFaceGeom && (findObject(npcFaceGeom, entry.first) || findObject(npcFaceGeom, entry.second))) {
+					inUse = true;
+				}
+
+				if (inUse) {
 					auto findNode = this->head.nodeUseCount.find(entry.first);
 					if (findNode != this->head.nodeUseCount.end()) {
 						findNode->second += 1;
