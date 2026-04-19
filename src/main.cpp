@@ -449,7 +449,6 @@ void MessageHandler(SKSE::MessagingInterface::Message* a_msg)
 		{
 			hdt::g_pluginInterface.onPostPostLoad();
 			checkOldPlugins();
-			Hooks::Install();
 		}
 		break;
 	}
@@ -547,7 +546,8 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_s
 	//
 	SKSE::GetCameraEventSource()->AddEventSink(hdt::SkyrimPhysicsWorld::get());
 
-	//
+	Hooks::Install();
+
 	hdt::g_pluginInterface.init(a_skse);
 
 	//
