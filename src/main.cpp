@@ -118,8 +118,9 @@ void DumpNodeChildren(RE::NiAVObject* node)
 	}
 
 	RE::NiNode* niNode = node->AsNode();
-	auto& children = niNode->GetChildren();
-	if (niNode && children.size() > 0) {
+	if (niNode) {
+		auto& children = niNode->GetChildren();
+		if (children.size() > 0) {
 		for (uint16_t i = 0; i < children.size(); i++) {
 			RE::NiPointer<RE::NiAVObject> object = children[i];
 			if (object) {
@@ -192,6 +193,7 @@ void DumpNodeChildren(RE::NiAVObject* node)
 						object->world.translate.z);
 				}
 			}
+		}
 		}
 	}
 }
