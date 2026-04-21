@@ -26,8 +26,12 @@ namespace hdt
 		// btGetPPLTaskScheduler() is avoided because ConcRT performs poorly on Linux/Proton.
 		// btGetTBBTaskScheduler() may return nullptr if Bullet wasn't compiled with BT_USE_TBB.
 		auto* scheduler = btGetTBBTaskScheduler();
-		if (!scheduler)
+		if (scheduler) {
+			logger::info("hdtSMP: using TBB task scheduler");
+		} else {
 			scheduler = btCreateDefaultTaskScheduler();
+			logger::info("hdtSMP: using default task scheduler '{}'", scheduler ? scheduler->getName() : "null");
+		}
 		btSetTaskScheduler(scheduler);
 
 		m_windSpeed = _mm_setzero_ps();
