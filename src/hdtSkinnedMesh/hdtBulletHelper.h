@@ -425,38 +425,21 @@ namespace hdt
 	{
 		std::atomic<bool> m_flag{ false };
 
-		// Bounded active spin before falling back to OS park. Keeps short
-		// critical sections hot on P-cores without burning E-core time
-		// (pause is ~14x cheaper on Intel E-cores vs P-cores).
-		static constexpr int kSpinTries = 64;
-
 	public:
 		void lock() noexcept
 		{
-			// Fast path.
-			if (!m_flag.exchange(true, std::memory_order_acquire))
-				return;
-
-			// Short bounded spin with cache-local reads.
-			for (int i = 0; i < kSpinTries; ++i) {
-				_mm_pause();
-				if (!m_flag.load(std::memory_order_relaxed) &&
-					!m_flag.exchange(true, std::memory_order_acquire))
-					return;
-			}
-
-			// Slow path: OS-backed park. unlock() issues the matching notify.
-			while (true) {
-				m_flag.wait(true, std::memory_order_relaxed);
+			for (;;) {
 				if (!m_flag.exchange(true, std::memory_order_acquire))
 					return;
+				// spin on cachelocal read until it looks free
+				while (m_flag.load(std::memory_order_relaxed))
+					_mm_pause();
 			}
 		}
 
 		void unlock() noexcept
 		{
 			m_flag.store(false, std::memory_order_release);
-			m_flag.notify_one();
 		}
 
 		bool try_lock() noexcept
