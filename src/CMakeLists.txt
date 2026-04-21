@@ -75,6 +75,8 @@ set(SOURCE_FILES
 	"${SOURCE_DIR}/hdtSkyrimBone.h"
 	"${SOURCE_DIR}/hdtConvertNi.cpp"
 	"${SOURCE_DIR}/hdtConvertNi.h"
+	"${SOURCE_DIR}/hdtCpuTopology.cpp"
+	"${SOURCE_DIR}/hdtCpuTopology.h"
 	"${SOURCE_DIR}/hdtSkyrimSystem.cpp"
 	"${SOURCE_DIR}/hdtSkyrimSystem.h"
 	"${SOURCE_DIR}/XmlInspector/CharactersReader.hpp"

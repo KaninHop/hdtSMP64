@@ -6,6 +6,7 @@
 #include "config.h"
 #include "dhdtOverrideManager.h"
 #include "dhdtPapyrusFunctions.h"
+#include "hdtCpuTopology.h"
 #include "hdtSkyrimPhysicsWorld.h"
 
 void checkOldPlugins()
@@ -514,6 +515,10 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_s
 		logger::critical("{} v{} ({})"sv, Plugin::NAME, Plugin::VERSION.string(), Plugin::AVX_VARIANT);
 	} else {
 		logger::critical("{} v{}-{} ({})"sv, Plugin::NAME, Plugin::VERSION.string(), Plugin::BUILD_INFO, Plugin::AVX_VARIANT);
+	}
+
+	if (!hdt::cpu::initRuntime(Plugin::AVX_VARIANT)) {
+		return false;
 	}
 
 	hdt::logConfig();
