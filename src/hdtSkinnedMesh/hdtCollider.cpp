@@ -1,6 +1,5 @@
 #include "hdtCollider.h"
 #include <algorithm>
-#include <tbb/enumerable_thread_specific.h>
 
 namespace hdt
 {
@@ -33,10 +32,11 @@ namespace hdt
 			ColliderTree* b;
 			Mode mode;
 		};
-		// tbb::enumerable_thread_specific instead of thread_local:
-		// TBB worker threads can be e/recreated, which destroys thread_local data.
-		static tbb::enumerable_thread_specific<std::vector<Entry>> tls_stack;
-		auto& stack = tls_stack.local();
+		// thread_local: stack is .clear()-ed on each call, so worker thread
+		// recreation is harmless (fresh thread sees empty vector). Re-entry
+		// aliasing is prevented by tbb::this_task_arena::isolate in the
+		// outer dispatch (see hdtDispatcher.cpp).
+		thread_local std::vector<Entry> stack;
 		stack.clear();
 		stack.push_back({ this, r, L });
 		while (!stack.empty()) {
@@ -158,8 +158,7 @@ namespace hdt
 			ColliderTree* node;
 			size_t childIdx;
 		};
-		static tbb::enumerable_thread_specific<std::vector<Frame>> tls_stack;
-		auto& stack = tls_stack.local();
+		thread_local std::vector<Frame> stack;
 		stack.clear();
 		stack.push_back({ this, 0 });
 
@@ -247,8 +246,7 @@ namespace hdt
 			ColliderTree* b;
 			Mode mode;
 		};
-		static tbb::enumerable_thread_specific<std::vector<Entry>> tls_stack;
-		auto& stack = tls_stack.local();
+		thread_local std::vector<Entry> stack;
 		stack.clear();
 		stack.push_back({ this, r, L });
 

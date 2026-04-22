@@ -1,6 +1,5 @@
 #include "hdtSkinnedMeshAlgorithm.h"
 #include "hdtCollider.h"
-#include <tbb/concurrent_queue.h>
 
 namespace hdt
 {
@@ -462,39 +461,31 @@ namespace hdt
 	void SkinnedMeshAlgorithm::processCollision(SkinnedMeshBody* body0, SkinnedMeshBody* body1,
 		CollisionDispatcher* dispatcher)
 	{
-		// Use a concurrent_queue as an object pool to avoid reallocation overhead while
-		// remaining safe against TBB work-stealing re-entrancy (which enumerable_thread_specific is not).
-		static tbb::concurrent_queue<MergeBuffer*> s_mergePool;
-		MergeBuffer* pMerge = nullptr;
-		if (!s_mergePool.try_pop(pMerge)) {
-			pMerge = new MergeBuffer();
-		}
+		// thread_local so we don't heap-alloc these 200+ times per frame.
+		// MergeBuffer::resize() is O(1) after first call (generation counter, no zeroing).
+		// Safe against TBB work-stealing re-entrancy only because the outer dispatch
+		// wraps this call in tbb::this_task_arena::isolate (see hdtDispatcher.cpp).
+		thread_local MergeBuffer merge;
+		thread_local auto collision = std::make_unique<CollisionResult[]>(MaxCollisionCount);
 
-		struct PoolDeleter {
-			void operator()(MergeBuffer* ptr) const { s_mergePool.push(ptr); }
-		};
-		std::unique_ptr<MergeBuffer, PoolDeleter> merge(pMerge);
-
-		CollisionResult collision[MaxCollisionCount];
-
-		merge->resize(static_cast<int>(body0->m_skinnedBones.size()), static_cast<int>(body1->m_skinnedBones.size()));
+		merge.resize(static_cast<int>(body0->m_skinnedBones.size()), static_cast<int>(body1->m_skinnedBones.size()));
 
 		if (body0->m_shape->asPerTriangleShape() && body1->m_shape->asPerTriangleShape()) {
 			// Todo: This can actually be further optimized, but would need a re-factor.. However, would the performance increase be worth
 			// the extra boilerplate code..?
-			processCollision(body0->m_shape->asPerTriangleShape(), body1->m_shape->asPerVertexShape(), *merge,
-				collision);
-			processCollision(body0->m_shape->asPerVertexShape(), body1->m_shape->asPerTriangleShape(), *merge,
-				collision);
+			processCollision(body0->m_shape->asPerTriangleShape(), body1->m_shape->asPerVertexShape(), merge,
+				collision.get());
+			processCollision(body0->m_shape->asPerVertexShape(), body1->m_shape->asPerTriangleShape(), merge,
+				collision.get());
 		} else if (body0->m_shape->asPerTriangleShape())
-			processCollision(body0->m_shape->asPerTriangleShape(), body1->m_shape->asPerVertexShape(), *merge,
-				collision);
+			processCollision(body0->m_shape->asPerTriangleShape(), body1->m_shape->asPerVertexShape(), merge,
+				collision.get());
 		else if (body1->m_shape->asPerTriangleShape())
-			processCollision(body0->m_shape->asPerVertexShape(), body1->m_shape->asPerTriangleShape(), *merge,
-				collision);
+			processCollision(body0->m_shape->asPerVertexShape(), body1->m_shape->asPerTriangleShape(), merge,
+				collision.get());
 		else
-			processCollision(body0->m_shape->asPerVertexShape(), body1->m_shape->asPerVertexShape(), *merge, collision);
+			processCollision(body0->m_shape->asPerVertexShape(), body1->m_shape->asPerVertexShape(), merge, collision.get());
 
-		merge->apply(body0, body1, dispatcher);
+		merge.apply(body0, body1, dispatcher);
 	}
 }
