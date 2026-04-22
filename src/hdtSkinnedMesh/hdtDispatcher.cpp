@@ -3,6 +3,7 @@
 #include "hdtSkinnedMeshBody.h"
 
 #include <LinearMath/btPoolAllocator.h>
+#include <tbb/task_arena.h>
 #include <algorithm>
 
 namespace hdt
@@ -135,9 +136,14 @@ namespace hdt
 			});
 		}
 
+		// isolate prevents this thread from stealing an unrelated outer pair task while it waits
+		// inside nested parallel work in processCollision. Required for the per-thread MergeBuffer
+		// ETS pool in hdtSkinnedMeshAlgorithm to remain aliasing-safe.
 		tbb::parallel_for_each(m_pairs.begin(), m_pairs.end(), [&, this](const std::pair<SkinnedMeshBody*, SkinnedMeshBody*>& i) {
 			if (i.first->m_shape->m_tree.collapseCollideL(&i.second->m_shape->m_tree))
-				SkinnedMeshAlgorithm::processCollision(i.first, i.second, this);
+				tbb::this_task_arena::isolate([&] {
+					SkinnedMeshAlgorithm::processCollision(i.first, i.second, this);
+				});
 		});
 
 		m_pairs.clear();

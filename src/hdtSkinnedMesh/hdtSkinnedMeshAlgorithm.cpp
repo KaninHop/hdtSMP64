@@ -1,6 +1,6 @@
 #include "hdtSkinnedMeshAlgorithm.h"
 #include "hdtCollider.h"
-#include <tbb/concurrent_queue.h>
+#include <tbb/enumerable_thread_specific.h>
 
 namespace hdt
 {
@@ -462,18 +462,12 @@ namespace hdt
 	void SkinnedMeshAlgorithm::processCollision(SkinnedMeshBody* body0, SkinnedMeshBody* body1,
 		CollisionDispatcher* dispatcher)
 	{
-		// Use a concurrent_queue as an object pool to avoid reallocation overhead while
-		// remaining safe against TBB work-stealing re-entrancy (which enumerable_thread_specific is not).
-		static tbb::concurrent_queue<MergeBuffer*> s_mergePool;
-		MergeBuffer* pMerge = nullptr;
-		if (!s_mergePool.try_pop(pMerge)) {
-			pMerge = new MergeBuffer();
-		}
-
-		struct PoolDeleter {
-			void operator()(MergeBuffer* ptr) const { s_mergePool.push(ptr); }
-		};
-		std::unique_ptr<MergeBuffer, PoolDeleter> merge(pMerge);
+		// Per-thread MergeBuffer reuse. Safe against TBB work-stealing only when callers
+		// wrap the outer parallel_for_each body in tbb::this_task_arena::isolate — otherwise
+		// a thread waiting inside nested parallel work could steal another outer task and
+		// re-enter this function on the same thread, aliasing the same buffer.
+		static tbb::enumerable_thread_specific<MergeBuffer> s_mergePool;
+		MergeBuffer* merge = &s_mergePool.local();
 
 		CollisionResult collision[MaxCollisionCount];
 
