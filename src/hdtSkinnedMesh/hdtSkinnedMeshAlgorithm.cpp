@@ -1,5 +1,6 @@
 #include "hdtSkinnedMeshAlgorithm.h"
 #include "hdtCollider.h"
+#include <tbb/task_arena.h>
 
 namespace hdt
 {
@@ -281,9 +282,11 @@ namespace hdt
 				Aabb aabbA;
 				auto aabbB = b->aabbMe;
 
-				std::vector<Aabb*> listA;
-				std::vector<Aabb*> listB;
+				thread_local std::vector<Aabb*> listA;
+				thread_local std::vector<Aabb*> listB;
 
+				listA.clear();
+				listB.clear();
 				listA.reserve(asize);
 				listB.reserve(bsize);
 
@@ -322,7 +325,9 @@ namespace hdt
 
 			if (pairs.size() >= std::thread::hardware_concurrency())
 				// FIXME PROFILING This is the line where we spend the most time in the whole mod.
-				tbb::parallel_for_each(pairs.begin(), pairs.end(), func);
+				// isolate: thread parked here waiting for inner work must not steal an outer
+				// processCollision task — that would alias thread_local MergeBuffer/listA/listB.
+				tbb::this_task_arena::isolate([&] { tbb::parallel_for_each(pairs.begin(), pairs.end(), func); });
 			else
 				for (auto& i : pairs) func(i);
 
