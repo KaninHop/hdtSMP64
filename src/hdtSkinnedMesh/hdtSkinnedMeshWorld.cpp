@@ -14,23 +14,9 @@ namespace hdt
 {
 	namespace
 	{
-		// Todo: Look into using physical cores here rather than threads. By default, this will use threads
 		int initBulletTbbAndGetThreadCount()
 		{
 			auto* scheduler = btGetTBBTaskScheduler();
-
-			// If TBB isn't avaiable, consider that a critical error and exit. We cannot recover from this
-			// btGetTBBTaskScheduler() may return nullptr if Bullet wasn't compiled with BT_USE_TBB.
-			if (!scheduler) {
-				logger::critical("hdtSMP: Intel TBB unavailable - aborting!");
-				MessageBox(
-					nullptr,
-					TEXT("Faster-SMP-Physics requires Intel TBB, which failed to load."
-						 "Open a bug report if you believe this is an error!"),
-					TEXT("hdtSMP64"), MB_OK | MB_ICONERROR);
-				throw std::runtime_error("Intel TBB task scheduler not available");
-			}
-
 			btSetTaskScheduler(scheduler);
 
 			int concurrency = std::max(1, scheduler->getMaxNumThreads());
