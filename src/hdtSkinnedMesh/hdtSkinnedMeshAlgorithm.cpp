@@ -468,8 +468,9 @@ namespace hdt
 	{
 		// thread_local so we don't heap-alloc these 200+ times per frame.
 		// MergeBuffer::resize() is O(1) after first call (generation counter, no zeroing).
-		// Safe against TBB work-stealing re-entrancy only because the outer dispatch
-		// wraps this call in tbb::this_task_arena::isolate (see hdtDispatcher.cpp).
+		// Safe against TBB work-stealing re-entrancy: SkinnedMeshAlgorithm::processCollision
+		// is called from CollisionCheckAlgorithm::operator() (hdtSkinnedMeshAlgorithm.cpp),
+		// which wraps its inner parallel_for_each in tbb::this_task_arena::isolate.
 		thread_local MergeBuffer merge;
 		thread_local auto collision = std::make_unique<CollisionResult[]>(MaxCollisionCount);
 
