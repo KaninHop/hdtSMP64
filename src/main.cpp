@@ -405,11 +405,9 @@ namespace
 		auto sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(path->string(), true);
 #endif
 
-		const auto level = static_cast<spdlog::level::level_enum>(hdt::g_logLevel);
-
 		auto log = std::make_shared<spdlog::logger>("global log"s, std::move(sink));
-		log->set_level(level);
-		log->flush_on(level);
+		log->set_level(spdlog::level::level_enum::info);
+		log->flush_on(spdlog::level::level_enum::info);
 
 		spdlog::set_default_logger(std::move(log));
 		spdlog::set_pattern("[%H:%M:%S.%e] [%L] %v"s);
@@ -506,8 +504,6 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_s
 
 	SKSE::Init(a_skse);
 
-	hdt::loadConfig();
-
 	InitializeLog();
 
 	if constexpr (Plugin::BUILD_INFO.empty()) {
@@ -516,6 +512,7 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_s
 		logger::critical("{} v{}-{} ({})"sv, Plugin::NAME, Plugin::VERSION.string(), Plugin::BUILD_INFO, Plugin::AVX_VARIANT);
 	}
 
+	hdt::loadConfig();
 	hdt::logConfig();
 
 	const auto messaging = SKSE::GetMessagingInterface();
