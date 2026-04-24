@@ -12,6 +12,35 @@
 
 namespace hdt
 {
+	namespace
+	{
+		// Todo: Look into using physical cores here rather than threads. By default, this will use threads
+		int initBulletTbbAndGetThreadCount()
+		{
+			auto* scheduler = btGetTBBTaskScheduler();
+
+			// If TBB isn't avaiable, consider that a critical error and exit. We cannot recover from this
+			// btGetTBBTaskScheduler() may return nullptr if Bullet wasn't compiled with BT_USE_TBB.
+			if (!scheduler) {
+				logger::critical("hdtSMP: Intel TBB unavailable - aborting!");
+				MessageBox(
+					nullptr,
+					TEXT("Faster-SMP-Physics requires Intel TBB, which failed to load."
+						 "Open a bug report if you believe this is an error!"),
+					TEXT("hdtSMP64"), MB_OK | MB_ICONERROR);
+				throw std::runtime_error("Intel TBB task scheduler not available");
+			}
+
+			btSetTaskScheduler(scheduler);
+
+			int concurrency = std::max(1, scheduler->getMaxNumThreads());
+
+			logger::info("Physics simulation is using {} threads", concurrency);
+
+			return concurrency;
+		}
+	}
+
 	SkinnedMeshWorld::SkinnedMeshWorld() :
 		btDiscreteDynamicsWorldMt(
 			nullptr,
@@ -20,22 +49,10 @@ namespace hdt
 			// (P-core logicals on hybrid, physical cores otherwise) to avoid
 			// oversubscription and SMT-sibling FPU contention.
 			new btConstraintSolverPoolMt(
-				static_cast<int>(hdt::cpu::recommendedWorkerCount())),
+				initBulletTbbAndGetThreadCount()),
 			nullptr,  // no Mt solver, avoids btBatchedConstraints entirely (we are not designed for that yet)
 			nullptr)
 	{
-		// Prefer TBB scheduler if available, otherwise use the default OS thread pool scheduler.
-		// btGetPPLTaskScheduler() is avoided because ConcRT performs poorly on Linux/Proton.
-		// btGetTBBTaskScheduler() may return nullptr if Bullet wasn't compiled with BT_USE_TBB.
-		auto* scheduler = btGetTBBTaskScheduler();
-		if (scheduler) {
-			logger::info("hdtSMP: using TBB task scheduler");
-		} else {
-			scheduler = btCreateDefaultTaskScheduler();
-			logger::info("hdtSMP: using default task scheduler '{}'", scheduler ? scheduler->getName() : "null");
-		}
-		btSetTaskScheduler(scheduler);
-
 		m_windSpeed = _mm_setzero_ps();
 
 		auto collisionConfiguration = new btDefaultCollisionConfiguration;

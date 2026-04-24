@@ -34,8 +34,8 @@ namespace hdt
 		};
 		// thread_local: stack is .clear()-ed on each call, so worker thread
 		// recreation is harmless (fresh thread sees empty vector). Re-entry
-		// aliasing is prevented by tbb::this_task_arena::isolate in the
-		// outer dispatch (see hdtDispatcher.cpp).
+		// aliasing is prevented by tbb::this_task_arena::isolate in
+		// CollisionCheckAlgorithm::operator() (hdtSkinnedMeshAlgorithm.cpp).
 		thread_local std::vector<Entry> stack;
 		stack.clear();
 		stack.push_back({ this, r, L });

@@ -323,7 +323,7 @@ namespace hdt
 				listB.clear();
 			};
 
-			if (pairs.size() >= std::thread::hardware_concurrency())
+			if (pairs.size() >= 32)
 				// FIXME PROFILING This is the line where we spend the most time in the whole mod.
 				// isolate: thread parked here waiting for inner work must not steal an outer
 				// processCollision task — that would alias thread_local MergeBuffer/listA/listB.
@@ -468,8 +468,9 @@ namespace hdt
 	{
 		// thread_local so we don't heap-alloc these 200+ times per frame.
 		// MergeBuffer::resize() is O(1) after first call (generation counter, no zeroing).
-		// Safe against TBB work-stealing re-entrancy only because the outer dispatch
-		// wraps this call in tbb::this_task_arena::isolate (see hdtDispatcher.cpp).
+		// Safe against TBB work-stealing re-entrancy: SkinnedMeshAlgorithm::processCollision
+		// is called from CollisionCheckAlgorithm::operator() (hdtSkinnedMeshAlgorithm.cpp),
+		// which wraps its inner parallel_for_each in tbb::this_task_arena::isolate.
 		thread_local MergeBuffer merge;
 		thread_local auto collision = std::make_unique<CollisionResult[]>(MaxCollisionCount);
 
