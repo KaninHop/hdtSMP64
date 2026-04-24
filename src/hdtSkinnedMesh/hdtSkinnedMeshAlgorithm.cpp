@@ -323,7 +323,7 @@ namespace hdt
 				listB.clear();
 			};
 
-			if (pairs.size() >= std::thread::hardware_concurrency())
+			if (pairs.size() >= 32)
 				// FIXME PROFILING This is the line where we spend the most time in the whole mod.
 				// isolate: thread parked here waiting for inner work must not steal an outer
 				// processCollision task — that would alias thread_local MergeBuffer/listA/listB.
