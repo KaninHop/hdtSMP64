@@ -1,5 +1,6 @@
 #include "hdtSkinnedMeshAlgorithm.h"
 #include "hdtCollider.h"
+#include <tbb/task_arena.h>
 
 namespace hdt
 {
@@ -284,6 +285,8 @@ namespace hdt
 				thread_local std::vector<Aabb*> listA;
 				thread_local std::vector<Aabb*> listB;
 
+				listA.clear();
+				listB.clear();
 				listA.reserve(asize);
 				listB.reserve(bsize);
 
@@ -320,9 +323,11 @@ namespace hdt
 				listB.clear();
 			};
 
-			if (pairs.size() >= std::thread::hardware_concurrency())
+			if (pairs.size() >= 32)
 				// FIXME PROFILING This is the line where we spend the most time in the whole mod.
-				concurrency::parallel_for_each(pairs.begin(), pairs.end(), func);
+				// isolate: thread parked here waiting for inner work must not steal an outer
+				// processCollision task — that would alias thread_local MergeBuffer/listA/listB.
+				tbb::this_task_arena::isolate([&] { tbb::parallel_for_each(pairs.begin(), pairs.end(), func); });
 			else
 				for (auto& i : pairs) func(i);
 
@@ -461,8 +466,11 @@ namespace hdt
 	void SkinnedMeshAlgorithm::processCollision(SkinnedMeshBody* body0, SkinnedMeshBody* body1,
 		CollisionDispatcher* dispatcher)
 	{
-		// thread_local so we don't heap-alloc these 200+ times per frame
-		// MergeBuffer::resize() is O(1) after first call (generation counter, no zeroing)
+		// thread_local so we don't heap-alloc these 200+ times per frame.
+		// MergeBuffer::resize() is O(1) after first call (generation counter, no zeroing).
+		// Safe against TBB work-stealing re-entrancy: SkinnedMeshAlgorithm::processCollision
+		// is called from CollisionCheckAlgorithm::operator() (hdtSkinnedMeshAlgorithm.cpp),
+		// which wraps its inner parallel_for_each in tbb::this_task_arena::isolate.
 		thread_local MergeBuffer merge;
 		thread_local auto collision = std::make_unique<CollisionResult[]>(MaxCollisionCount);
 

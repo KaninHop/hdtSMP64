@@ -2,7 +2,7 @@
 
 #include "hdtBulletHelper.h"
 #include "hdtConstraintGroup.h"
-#include <ppltasks.h>
+#include <tbb/tbb.h>
 
 namespace hdt
 {
@@ -44,7 +44,6 @@ namespace hdt
 		std::vector<RE::BSTSmartPointer<ConstraintGroup>> m_constraintGroups;
 
 	private:
-		typedef concurrency::task<void> task;
-		typedef concurrency::task_group task_group;
+		typedef tbb::task_group task_group;
 	};
 }

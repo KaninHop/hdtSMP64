@@ -86,6 +86,21 @@ string(
 		"${CPP_CONTENT}")
 file(WRITE "${SOURCE_PATH}/src/BulletDynamics/ConstraintSolver/btGeneric6DofSpring2Constraint.cpp" "${CPP_CONTENT}")
 
+# oneTBB (TBB >= 2021) removed task_scheduler_init.  Port btThreads.cpp to the oneTBB API: use tbb::global_control for
+# thread-count limiting and tbb::info::default_concurrency() instead of the removed default_num_threads().
+file(READ "${SOURCE_PATH}/src/LinearMath/btThreads.cpp" THREADS_CPP)
+string(REPLACE "#include <tbb/task_scheduler_init.h>\n" "#include <tbb/global_control.h>\n#include <tbb/info.h>\n"
+			   THREADS_CPP "${THREADS_CPP}")
+string(REPLACE "tbb::task_scheduler_init* m_tbbSchedulerInit;" "tbb::global_control* m_tbbSchedulerInit;" THREADS_CPP
+			   "${THREADS_CPP}")
+string(REPLACE "return tbb::task_scheduler_init::default_num_threads();" "return tbb::info::default_concurrency();"
+			   THREADS_CPP "${THREADS_CPP}")
+string(
+	REPLACE "m_tbbSchedulerInit = new tbb::task_scheduler_init(m_numThreads);"
+			"m_tbbSchedulerInit = new tbb::global_control(tbb::global_control::max_allowed_parallelism, m_numThreads);"
+			THREADS_CPP "${THREADS_CPP}")
+file(WRITE "${SOURCE_PATH}/src/LinearMath/btThreads.cpp" "${THREADS_CPP}")
+
 file(REMOVE_RECURSE "${SOURCE_PATH}/examples/ThirdPartyLibs")
 
 vcpkg_check_features(
@@ -104,10 +119,20 @@ vcpkg_check_features(
 	rtti
 	USE_MSVC_DISABLE_RTTI)
 
-if("multithreading" IN_LIST FEATURES
-   AND VCPKG_TARGET_IS_WINDOWS
-   AND NOT VCPKG_TARGET_IS_MINGW)
-	list(APPEND FEATURE_OPTIONS -DBULLET2_USE_PPL_MULTITHREADING=ON)
+set(_bullet_tbb_options_release "")
+set(_bullet_tbb_options_debug "")
+if("multithreading" IN_LIST FEATURES)
+	# Use TBB (from vcpkg) instead of PPL so Bullet's internal task scheduler shares the same threading backend as the
+	# hdtSMP64 plugin. vcpkg's oneTBB ships as tbb12(_debug).lib; bullet's CMake does a fixed find_library(TBB_LIBRARY
+	# tbb ...), so we pre-seed the cache vars to short-circuit the find and point at the right file per config.
+	list(APPEND FEATURE_OPTIONS -DBULLET2_USE_TBB_MULTITHREADING=ON
+		 "-DBULLET2_TBB_INCLUDE_DIR=${CURRENT_INSTALLED_DIR}/include")
+	list(APPEND _bullet_tbb_options_release "-DBULLET2_TBB_LIB_DIR=${CURRENT_INSTALLED_DIR}/lib"
+		 "-DTBB_LIBRARY=${CURRENT_INSTALLED_DIR}/lib/tbb12.lib"
+		 "-DTBBMALLOC_LIBRARY=${CURRENT_INSTALLED_DIR}/lib/tbbmalloc.lib")
+	list(APPEND _bullet_tbb_options_debug "-DBULLET2_TBB_LIB_DIR=${CURRENT_INSTALLED_DIR}/debug/lib"
+		 "-DTBB_LIBRARY=${CURRENT_INSTALLED_DIR}/debug/lib/tbb12_debug.lib"
+		 "-DTBBMALLOC_LIBRARY=${CURRENT_INSTALLED_DIR}/debug/lib/tbbmalloc_debug.lib")
 endif()
 
 string(COMPARE EQUAL "${VCPKG_CRT_LINKAGE}" "dynamic" USE_MSVC_RUNTIME_LIBRARY_DLL)
@@ -133,13 +158,18 @@ vcpkg_cmake_configure(
 	-DBUILD_UNIT_TESTS=OFF
 	-DINSTALL_LIBS=ON
 	${FEATURE_OPTIONS}
+	OPTIONS_RELEASE
+	${_bullet_tbb_options_release}
+	OPTIONS_DEBUG
+	${_bullet_tbb_options_debug}
 	MAYBE_UNUSED_VARIABLES
 	BUILD_BULLET_ROBOTICS_EXTRA
 	BUILD_BULLET_ROBOTICS_GUI_EXTRA
 	BUILD_GIMPACTUTILS_EXTRA
 	BUILD_HACD_EXTRA
 	BUILD_OBJ2SDF_EXTRA
-	USE_MSVC_DISABLE_RTTI)
+	USE_MSVC_DISABLE_RTTI
+	BULLET2_TBB_LIB_DIR)
 
 vcpkg_cmake_install()
 vcpkg_copy_pdbs()

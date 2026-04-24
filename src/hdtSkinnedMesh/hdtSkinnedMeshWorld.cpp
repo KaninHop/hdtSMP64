@@ -11,6 +11,21 @@
 
 namespace hdt
 {
+	namespace
+	{
+		int initBulletTbbAndGetThreadCount()
+		{
+			auto* scheduler = btGetTBBTaskScheduler();
+			btSetTaskScheduler(scheduler);
+
+			int concurrency = std::max(1, scheduler->getMaxNumThreads());
+
+			logger::info("Physics simulation is using {} threads", concurrency);
+
+			return concurrency;
+		}
+	}
+
 	SkinnedMeshWorld::SkinnedMeshWorld() :
 		btDiscreteDynamicsWorldMt(
 			nullptr,
@@ -18,12 +33,10 @@ namespace hdt
 			// Pool of regular sequential solvers one per hardware thread.
 			// Each island gets dispatched to a free solver on any thread.
 			new btConstraintSolverPoolMt(
-				std::max(1, static_cast<int>(std::thread::hardware_concurrency()))),
+				initBulletTbbAndGetThreadCount()),
 			nullptr,  // no Mt solver, avoids btBatchedConstraints entirely (we are not designed for that yet)
 			nullptr)
 	{
-		btSetTaskScheduler(btGetPPLTaskScheduler());
-
 		m_windSpeed = _mm_setzero_ps();
 
 		auto collisionConfiguration = new btDefaultCollisionConfiguration;

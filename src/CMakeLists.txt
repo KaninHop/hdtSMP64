@@ -1,6 +1,6 @@
 set(ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
-add_compile_definitions(_SILENCE_AMP_DEPRECATION_WARNINGS)
+add_compile_definitions(_SILENCE_AMP_DEPRECATION_WARNINGS NOMINMAX)
 
 set(SOURCE_DIR "${ROOT_DIR}/src")
 
@@ -190,6 +190,7 @@ endif()
 find_package(Bullet CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(xbyak REQUIRED CONFIG)
+find_package(TBB CONFIG REQUIRED)
 
 include_directories(${BULLET_INCLUDE_DIRS})
 
@@ -202,7 +203,8 @@ target_link_libraries(
 			${DETOURS_LIBRARY_RELEASE}
 			debug
 			${DETOURS_LIBRARY_DEBUG}
-			${BULLET_LIBRARIES})
+			${BULLET_LIBRARIES}
+			TBB::tbb)
 
 target_precompile_headers("${PROJECT_NAME}" PRIVATE "${SOURCE_DIR}/PCH.h")
 

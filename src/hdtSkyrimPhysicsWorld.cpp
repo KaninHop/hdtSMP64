@@ -46,7 +46,7 @@ namespace hdt
 		m_accumulatedInterval = 0;
 	}
 
-	SkyrimPhysicsWorld::~SkyrimPhysicsWorld(void)
+	SkyrimPhysicsWorld::~SkyrimPhysicsWorld(void) noexcept
 	{
 	}
 
@@ -429,6 +429,8 @@ namespace hdt
 		while (m_systems.size()) {
 			SkinnedMeshWorld::removeSkinnedMeshSystem(m_systems.back().get());
 		}
+
+		m_tasks.wait();
 
 		return RE::BSEventNotifyControl::kContinue;
 	}
