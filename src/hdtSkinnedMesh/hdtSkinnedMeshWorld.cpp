@@ -47,7 +47,7 @@ namespace hdt
 			// Pool of regular sequential solvers one per hardware thread.
 			// Each island gets dispatched to a free solver on any thread.
 			new btConstraintSolverPoolMt(
-				std::max(1, initBulletTbbAndGetThreadCount())),
+				initBulletTbbAndGetThreadCount()),
 			nullptr,  // no Mt solver, avoids btBatchedConstraints entirely (we are not designed for that yet)
 			nullptr)
 	{
