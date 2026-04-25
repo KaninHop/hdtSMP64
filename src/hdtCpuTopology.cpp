@@ -108,25 +108,21 @@ namespace hdt::cpu
 			static std::unique_ptr<tbb::global_control> inst;
 			return inst;
 		}
-	}
 
-	bool supportsAVX512F()
-	{
-		static const bool v = detectAVX512();
-		return v;
-	}
+		bool supportsAVX512F()
+		{
+			static const bool v = detectAVX512();
+			return v;
+		}
 
-	unsigned physicalCoreCount() { return topology().physical; }
-	unsigned performanceCoreCount() { return topology().pCoreLogical; }
-	bool     isHybrid() { return topology().hybrid; }
-
-	unsigned recommendedWorkerCount()
-	{
-		const auto& t = topology();
 		// Hybrid: size pools to P-core logicals. Uniform: use physical core count
 		// to avoid SMT-sibling FPU contention in FMA-heavy skinning/solver work.
-		const unsigned base = t.hybrid ? t.pCoreLogical : t.physical;
-		return std::max<unsigned>(1, base);
+		unsigned recommendedWorkerCount()
+		{
+			const auto& t = topology();
+			const unsigned base = t.hybrid ? t.pCoreLogical : t.physical;
+			return std::max<unsigned>(1, base);
+		}
 	}
 
 	bool initRuntime(std::string_view avxVariant)
