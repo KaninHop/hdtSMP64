@@ -148,19 +148,16 @@ namespace hdt::cpu
 
 		const auto& t = topology();
 
-		if (wantAvx512 && t.hybrid && t.pCoreMask != 0) {
-			// Intel hybrid CPUs fuse AVX-512 off on E-cores. If a user has
-			// unlocked it on P-cores via BIOS, the OS can still schedule our
-			// threads onto E-cores and trigger #UD. Pin process to P-cores.
+		if (t.hybrid && t.pCoreMask != 0) {
 			HANDLE proc = GetCurrentProcess();
 			ULONG_PTR procMask = 0, sysMask = 0;
 			if (GetProcessAffinityMask(proc, &procMask, &sysMask)) {
 				ULONG_PTR target = t.pCoreMask & procMask;
 				if (target != 0 && target != procMask) {
 					if (SetProcessAffinityMask(proc, target)) {
-						SKSE::log::warn(
-							"AVX-512 build on hybrid CPU: restricted process affinity to P-cores "
-							"(mask 0x{:X}) to avoid #UD on E-cores.",
+						SKSE::log::info(
+							"Hybrid CPU: restricted process affinity to P-cores "
+							"(mask 0x{:X}) to avoid E-core scheduling.",
 							static_cast<unsigned long long>(target));
 					}
 				}
@@ -175,6 +172,24 @@ namespace hdt::cpu
 			"CPU topology: {} logical / {} physical / {} P-core logical, hybrid={}. "
 			"TBB max_allowed_parallelism={}.",
 			t.logical, t.physical, t.pCoreLogical, t.hybrid, workers);
+
+		if (t.hybrid) {
+			auto maskToList = [](ULONG_PTR mask) {
+				std::string s;
+				for (ULONG_PTR m = mask; m; m &= m - 1) {
+					unsigned long idx = 0;
+					_BitScanForward64(&idx, static_cast<unsigned __int64>(m));
+					if (!s.empty()) s += ',';
+					s += std::to_string(idx);
+				}
+				return s;
+			};
+			ULONG_PTR allMask = (t.logical < 64) ? ((ULONG_PTR(1) << t.logical) - 1) : ~ULONG_PTR(0);
+			ULONG_PTR eMask = allMask & ~t.pCoreMask;
+			SKSE::log::debug("P-core logical processors: [{}]", maskToList(t.pCoreMask));
+			if (eMask)
+				SKSE::log::debug("E-core logical processors: [{}]", maskToList(eMask));
+		}
 
 		return true;
 	}
