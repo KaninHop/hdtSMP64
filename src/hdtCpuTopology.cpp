@@ -89,6 +89,30 @@ namespace hdt::cpu
 		// CPU feature / vendor checks
 		// ---------------------------------------------------------------------
 
+		bool detectAVX()
+		{
+			int info[4]{};
+			__cpuid(info, 1);
+			const bool osXSAVE = (info[2] & (1 << 27)) != 0;
+			const bool cpuAVX  = (info[2] & (1 << 28)) != 0;
+			if (!osXSAVE || !cpuAVX)
+				return false;
+			const unsigned long long xcr0 = _xgetbv(0);
+			return (xcr0 & 0x6ull) == 0x6ull;  // XMM + YMM enabled
+		}
+
+		bool detectAVX2()
+		{
+			if (!detectAVX())
+				return false;
+			int info[4]{};
+			__cpuid(info, 0);
+			if (info[0] < 7)
+				return false;
+			__cpuidex(info, 7, 0);
+			return (info[1] & (1 << 5)) != 0;  // AVX2
+		}
+
 		bool detectAVX512()
 		{
 			int info[4]{};
@@ -112,11 +136,9 @@ namespace hdt::cpu
 			return (info[1] & (1 << 16)) != 0;  // AVX-512F
 		}
 
-		bool supportsAVX512F()
-		{
-			static const bool v = detectAVX512();
-			return v;
-		}
+		bool supportsAVX()    { static const bool v = detectAVX();    return v; }
+		bool supportsAVX2()   { static const bool v = detectAVX2();   return v; }
+		bool supportsAVX512F(){ static const bool v = detectAVX512(); return v; }
 
 		bool isAmdVendor()
 		{
@@ -159,30 +181,57 @@ namespace hdt::cpu
 		// initRuntime() pipeline stages
 		// ---------------------------------------------------------------------
 
-		// Refuse to load an AVX-512 binary on a CPU without AVX-512F.
+		// Refuse to load a binary requiring SIMD features the CPU lacks.
 		bool checkAvxRequirement(std::string_view avxVariant)
 		{
-			if (avxVariant != "avx512" || supportsAVX512F())
-				return true;
-
-			SKSE::log::critical(
-				"AVX-512 build loaded on a CPU without AVX-512F support. "
-				"Use the AVX2 or AVX build. Refusing to load.");
-			MessageBoxA(
-				nullptr,
-				"hdtSMP64: AVX-512 build loaded on a CPU that does not support AVX-512F.\n"
-				"Install the AVX2 (or AVX) variant instead.",
-				"hdtSMP64",
-				MB_OK | MB_ICONERROR);
-			return false;
+			if (avxVariant == "avx512" && !supportsAVX512F()) {
+				SKSE::log::critical(
+					"AVX-512 build loaded on a CPU without AVX-512F support. "
+					"Use the AVX2 or AVX build. Refusing to load.");
+				MessageBoxA(
+					nullptr,
+					"hdtSMP64: AVX-512 build loaded on a CPU that does not support AVX-512F.\n"
+					"Install the AVX2 (or AVX) variant instead.",
+					"hdtSMP64",
+					MB_OK | MB_ICONERROR);
+				return false;
+			}
+			if (avxVariant == "avx2" && !supportsAVX2()) {
+				SKSE::log::critical(
+					"AVX2 build loaded on a CPU without AVX2 support. "
+					"Use the AVX or noavx build. Refusing to load.");
+				MessageBoxA(
+					nullptr,
+					"hdtSMP64: AVX2 build loaded on a CPU that does not support AVX2.\n"
+					"Install the AVX (or noavx) variant instead.",
+					"hdtSMP64",
+					MB_OK | MB_ICONERROR);
+				return false;
+			}
+			if (avxVariant == "avx" && !supportsAVX()) {
+				SKSE::log::critical(
+					"AVX build loaded on a CPU without AVX support. "
+					"Use the noavx build. Refusing to load.");
+				MessageBoxA(
+					nullptr,
+					"hdtSMP64: AVX build loaded on a CPU that does not support AVX.\n"
+					"Install the noavx variant instead.",
+					"hdtSMP64",
+					MB_OK | MB_ICONERROR);
+				return false;
+			}
+			return true;
 		}
 
 		void logTopologySummary(const Topology& t, int arenaConcurrency)
 		{
+			const char* avxLevel = supportsAVX512F() ? "AVX-512" :
+			                       supportsAVX2()    ? "AVX2"    :
+			                       supportsAVX()     ? "AVX"     : "none";
 			SKSE::log::info(
-				"CPU topology: {} logical / {} physical / {} P-core logical, hybrid={}. "
+				"CPU topology: {} logical / {} physical / {} P-core logical, hybrid={}, SIMD={}. "
 				"Physics arena concurrency={}.",
-				t.logical, t.physical, t.pCoreLogical, t.hybrid, arenaConcurrency);
+				t.logical, t.physical, t.pCoreLogical, t.hybrid, avxLevel, arenaConcurrency);
 		}
 
 		// On hybrid Intel CPUs, log P-core / E-core processor index lists at debug level.
