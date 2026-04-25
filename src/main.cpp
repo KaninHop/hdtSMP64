@@ -513,14 +513,11 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_s
 		logger::critical("{} v{}-{} ({})"sv, Plugin::NAME, Plugin::VERSION.string(), Plugin::BUILD_INFO, Plugin::AVX_VARIANT);
 	}
 
-<<<<<<< HEAD
 	if (!hdt::cpu::initRuntime(Plugin::AVX_VARIANT)) {
 		return false;
 	}
 
-=======
 	hdt::loadConfig();
->>>>>>> Vibecoded_TBB_Port
 	hdt::logConfig();
 
 	const auto messaging = SKSE::GetMessagingInterface();

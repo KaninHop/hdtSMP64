@@ -152,13 +152,20 @@ namespace hdt::cpu
 			HANDLE proc = GetCurrentProcess();
 			ULONG_PTR procMask = 0, sysMask = 0;
 			if (GetProcessAffinityMask(proc, &procMask, &sysMask)) {
-				ULONG_PTR target = t.pCoreMask & procMask;
-				if (target != 0 && target != procMask) {
-					if (SetProcessAffinityMask(proc, target)) {
+				ULONG_PTR overlap = t.pCoreMask & procMask;
+				if (overlap == 0) {
+					if (SetProcessAffinityMask(proc, t.pCoreMask)) {
+						SKSE::log::warn(
+							"Existing process affinity (0x{:X}) had no overlap with P-cores (0x{:X}); "
+							"overriding to recover from misconfigured external pinning.",
+							static_cast<unsigned long long>(procMask),
+							static_cast<unsigned long long>(t.pCoreMask));
+					}
+				} else if (overlap != procMask) {
+					if (SetProcessAffinityMask(proc, overlap)) {
 						SKSE::log::info(
-							"Hybrid CPU: restricted process affinity to P-cores "
-							"(mask 0x{:X}) to avoid E-core scheduling.",
-							static_cast<unsigned long long>(target));
+							"Restricted process affinity to P-cores (mask 0x{:X}).",
+							static_cast<unsigned long long>(overlap));
 					}
 				}
 			}
@@ -173,22 +180,89 @@ namespace hdt::cpu
 			"TBB max_allowed_parallelism={}.",
 			t.logical, t.physical, t.pCoreLogical, t.hybrid, workers);
 
+		auto maskToList = [](ULONG_PTR mask) {
+			std::string s;
+			for (ULONG_PTR m = mask; m; m &= m - 1) {
+				unsigned long idx = 0;
+				_BitScanForward64(&idx, static_cast<unsigned __int64>(m));
+				if (!s.empty()) s += ',';
+				s += std::to_string(idx);
+			}
+			return s;
+		};
 		if (t.hybrid) {
-			auto maskToList = [](ULONG_PTR mask) {
-				std::string s;
-				for (ULONG_PTR m = mask; m; m &= m - 1) {
-					unsigned long idx = 0;
-					_BitScanForward64(&idx, static_cast<unsigned __int64>(m));
-					if (!s.empty()) s += ',';
-					s += std::to_string(idx);
-				}
-				return s;
-			};
 			ULONG_PTR allMask = (t.logical < 64) ? ((ULONG_PTR(1) << t.logical) - 1) : ~ULONG_PTR(0);
 			ULONG_PTR eMask = allMask & ~t.pCoreMask;
 			SKSE::log::debug("P-core logical processors: [{}]", maskToList(t.pCoreMask));
 			if (eMask)
 				SKSE::log::debug("E-core logical processors: [{}]", maskToList(eMask));
+		}
+
+		// Diagnostic only: detect multi-CCD AMD parts via L3 topology and log whether
+		// the process is already masked to a single CCD. We do not change affinity here;
+		// CCD pinning (V-Cache awareness, etc.) is left to the OS / chipset driver.
+		{
+			int cpuInfo[4]{};
+			__cpuid(cpuInfo, 0);
+			const bool isAMD = (cpuInfo[1] == 0x68747541 &&  // "Auth"
+			                    cpuInfo[3] == 0x69746e65 &&  // "enti"
+			                    cpuInfo[2] == 0x444d4163);   // "cAMD"
+			if (isAMD && !t.hybrid) {
+				DWORD clen = 0;
+				GetLogicalProcessorInformationEx(RelationCache, nullptr, &clen);
+				if (clen > 0 && GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
+					auto cbuf = std::make_unique<std::byte[]>(clen);
+					auto* cbase = reinterpret_cast<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*>(cbuf.get());
+					if (GetLogicalProcessorInformationEx(RelationCache, cbase, &clen)) {
+						std::vector<std::pair<DWORD, ULONG_PTR>> l3s;
+						DWORD coffset = 0;
+						while (coffset < clen) {
+							auto* ci = reinterpret_cast<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*>(cbuf.get() + coffset);
+							if (ci->Relationship == RelationCache &&
+							    ci->Cache.Level == 3 &&
+							    ci->Cache.Type != CacheInstruction)
+								l3s.emplace_back(ci->Cache.CacheSize, ci->Cache.GroupMask.Mask);
+							coffset += ci->Size;
+						}
+						if (l3s.size() > 1) {
+							DWORD maxSize = 0, minSize = ~DWORD(0);
+							for (auto& [sz, _] : l3s) { maxSize = std::max(maxSize, sz); minSize = std::min(minSize, sz); }
+							const bool asymmetric = (maxSize != minSize);
+							SKSE::log::info(
+								"AMD multi-CCD detected: {} CCDs, L3 sizes {} (asymmetric={}{}).",
+								l3s.size(),
+								[&] {
+									std::string s;
+									for (auto& [sz, _] : l3s) { if (!s.empty()) s += '/'; s += std::to_string(sz / (1024 * 1024)) + "MB"; }
+									return s;
+								}(),
+								asymmetric,
+								asymmetric ? " — likely X3D V-Cache part" : "");
+
+							ULONG_PTR procMask = 0, sysMask = 0;
+							if (GetProcessAffinityMask(GetCurrentProcess(), &procMask, &sysMask)) {
+								int ccdsTouched = 0;
+								ULONG_PTR pinnedCcdMask = 0;
+								for (auto& [sz, mask] : l3s) {
+									if (procMask & mask) {
+										++ccdsTouched;
+										pinnedCcdMask = mask;
+									}
+								}
+								if (ccdsTouched == 1) {
+									SKSE::log::info(
+										"Process is already pinned to a single CCD (mask 0x{:X}).",
+										static_cast<unsigned long long>(pinnedCcdMask));
+								} else {
+									SKSE::log::info(
+										"Process can run across {} CCDs; OS / chipset driver will steer scheduling.",
+										ccdsTouched);
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 
 		return true;
