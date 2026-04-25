@@ -3,7 +3,10 @@
 
 #include "HavokUtils.h"
 #include "XmlReader.h"
+#include "hdtCpuTopology.h"
 #include "hdtSkyrimPhysicsWorld.h"
+
+#include <tbb/task_arena.h>
 
 // F16C isn't supported on super old processors. AVX2+ (AVX processors can have it, but not guaranteed)
 #if defined(__AVX2__) || defined(__AVX512F__)
@@ -344,13 +347,15 @@ namespace hdt
 		}
 
 		if (m_deferredBuilds.size() > 2) {
-			tbb::parallel_for_each(
-				m_deferredBuilds.begin(), m_deferredBuilds.end(),
-				[](const DeferredBuild& db) {
-					if (db.vertexShape)
-						db.vertexShape->autoGen();
-					db.body->finishBuild();
-				});
+			hdt::cpu::physicsArena().execute([&] {
+				tbb::parallel_for_each(
+					m_deferredBuilds.begin(), m_deferredBuilds.end(),
+					[](const DeferredBuild& db) {
+						if (db.vertexShape)
+							db.vertexShape->autoGen();
+						db.body->finishBuild();
+					});
+			});
 		} else if (!m_deferredBuilds.empty()) {
 			for (const auto& db : m_deferredBuilds) {
 				if (db.vertexShape)

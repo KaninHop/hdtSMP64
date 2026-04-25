@@ -1,6 +1,7 @@
 #include "hdtCpuTopology.h"
 
-#include <tbb/global_control.h>
+#include <tbb/info.h>
+#include <tbb/task_arena.h>
 
 #include <intrin.h>
 #include <immintrin.h>
@@ -142,13 +143,16 @@ namespace hdt::cpu
 			return s;
 		}
 
-		// Hybrid: size pools to P-core logicals. Uniform: use physical core count
-		// to avoid SMT-sibling FPU contention in FMA-heavy skinning/solver work.
-		unsigned recommendedWorkerCount()
+		tbb::task_arena::constraints buildArenaConstraints()
 		{
-			const auto& t = topology();
-			const unsigned base = t.hybrid ? t.pCoreLogical : t.physical;
-			return std::max<unsigned>(1, base);
+			tbb::task_arena::constraints cs;
+			auto types = tbb::info::core_types();
+			// info::core_types() is ordered by performance class, ascending.
+			// Last entry = highest-performance type: P-cores on hybrid Intel,
+			// the only type on uniform CPUs.
+			if (!types.empty())
+				cs.set_core_type(types.back());
+			return cs;
 		}
 
 		// ---------------------------------------------------------------------
@@ -173,20 +177,12 @@ namespace hdt::cpu
 			return false;
 		}
 
-		// Install a process-wide TBB worker cap matching topology recommendation.
-		void installTbbConcurrencyCap(unsigned workers)
-		{
-			static std::unique_ptr<tbb::global_control> cap;
-			cap = std::make_unique<tbb::global_control>(
-				tbb::global_control::max_allowed_parallelism, workers);
-		}
-
-		void logTopologySummary(const Topology& t, unsigned workers)
+		void logTopologySummary(const Topology& t, int arenaConcurrency)
 		{
 			SKSE::log::info(
 				"CPU topology: {} logical / {} physical / {} P-core logical, hybrid={}. "
-				"TBB max_allowed_parallelism={}.",
-				t.logical, t.physical, t.pCoreLogical, t.hybrid, workers);
+				"Physics arena concurrency={}.",
+				t.logical, t.physical, t.pCoreLogical, t.hybrid, arenaConcurrency);
 		}
 
 		// On hybrid Intel CPUs, log P-core / E-core processor index lists at debug level.
@@ -282,16 +278,24 @@ namespace hdt::cpu
 		}
 	}
 
+	tbb::task_arena& physicsArena()
+	{
+		// Allocated once and intentionally leaked: tbb::task_arena is neither
+		// copyable nor movable, and a singleton's lifetime is process-bound.
+		static tbb::task_arena* arena = new tbb::task_arena(buildArenaConstraints());
+		return *arena;
+	}
+
 	bool initRuntime(std::string_view avxVariant)
 	{
 		if (!checkAvxRequirement(avxVariant))
 			return false;
 
-		const auto& t = topology();
-		const unsigned workers = recommendedWorkerCount();
+		auto& arena = physicsArena();
+		arena.initialize();
 
-		installTbbConcurrencyCap(workers);
-		logTopologySummary(t, workers);
+		const auto& t = topology();
+		logTopologySummary(t, arena.max_concurrency());
 		logHybridProcessorIndices(t);
 		logAmdMultiCcdDiagnostic(t);
 
