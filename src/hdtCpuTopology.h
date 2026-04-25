@@ -6,7 +6,7 @@ namespace hdt::cpu
 {
 	// Call once at plugin load. Returns false if the running binary requires an
 	// ISA the current CPU does not provide (caller should abort load).
-	// Also installs a process-wide TBB concurrency cap and, on hybrid Intel CPUs,
-	// pins process affinity to P-cores.
+	// Installs a TBB concurrency cap sized to P-core logicals (hybrid) or physical
+	// cores (uniform) and logs CPU topology diagnostics.
 	bool initRuntime(std::string_view avxVariant);
 }
