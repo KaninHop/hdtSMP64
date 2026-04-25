@@ -1,6 +1,9 @@
 #include "hdtSkyrimPhysicsWorld.h"
 #include "PluginInterfaceImpl.h"
 #include "WeatherManager.h"
+#include "hdtCpuTopology.h"
+
+#include <tbb/task_arena.h>
 
 namespace hdt
 {
@@ -112,11 +115,16 @@ namespace hdt
 				// at the cost of additional simulations.
 				const auto remainingTimeStep = std::min(m_accumulatedInterval, tick * m_maxSubSteps);
 
-				readTransform(remainingTimeStep);
+				// Route all FSMP/Bullet parallel work through the physics arena so
+				// workers are scoped to P-cores (hybrid Intel) and Skyrim's main /
+				// audio / render threads remain unaffected.
+				hdt::cpu::physicsArena().execute([&] {
+					readTransform(remainingTimeStep);
 
-				m_resetPc -= m_resetPc > 0;
+					m_resetPc -= m_resetPc > 0;
 
-				m_tasks.run([this, interval, tick, remainingTimeStep] { doUpdate2ndStep(interval, tick, remainingTimeStep); });
+					m_tasks.run([this, interval, tick, remainingTimeStep] { doUpdate2ndStep(interval, tick, remainingTimeStep); });
+				});
 			}
 		}
 	}

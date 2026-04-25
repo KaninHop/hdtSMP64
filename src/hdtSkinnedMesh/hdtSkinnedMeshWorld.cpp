@@ -1,5 +1,6 @@
 #include "hdtSkinnedMeshWorld.h"
 #include "hdtBoneScaleConstraint.h"
+#include "hdtCpuTopology.h"
 #include "hdtDispatcher.h"
 #include "hdtSkinnedMeshAlgorithm.h"
 #include "hdtSkyrimPhysicsWorld.h"
@@ -30,8 +31,9 @@ namespace hdt
 		btDiscreteDynamicsWorldMt(
 			nullptr,
 			nullptr,
-			// Pool of regular sequential solvers one per hardware thread.
-			// Each island gets dispatched to a free solver on any thread.
+			// Pool of sequential solvers sized to useful parallel workers
+			// (P-core logicals on hybrid, physical cores otherwise) to avoid
+			// oversubscription and SMT-sibling FPU contention.
 			new btConstraintSolverPoolMt(
 				initBulletTbbAndGetThreadCount()),
 			nullptr,  // no Mt solver, avoids btBatchedConstraints entirely (we are not designed for that yet)
